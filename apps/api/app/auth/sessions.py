@@ -19,7 +19,9 @@ SESSION_TTL = timedelta(hours=24)
 SESSION_IDLE_TTL = timedelta(hours=2)
 
 # Cookie configuration
-COOKIE_NAME = "__Host-af_session"
+# __Host- prefix requires Secure (HTTPS) — browsers silently drop it on http://
+# Use plain name in development, __Host- prefix in production
+COOKIE_NAME = "__Host-af_session" if settings.app_env == "production" else "af_session"
 COOKIE_PATH = "/"
 COOKIE_SAMESITE = "lax"
 
