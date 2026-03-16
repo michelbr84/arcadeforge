@@ -84,6 +84,7 @@ async def generate_game_task(ctx: dict, game_id: str) -> dict:
                 source_zip_path=workspace_path,
             )
             session.add(version)
+            await session.flush()  # Populate version.id before using it
 
             # Auto-validate: run scanner immediately
             from app.games.scanner import scan_code
