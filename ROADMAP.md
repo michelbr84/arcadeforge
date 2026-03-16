@@ -82,9 +82,10 @@
 - [x] 3.7 Protected route middleware (redirect to /auth/login if not authenticated)
 
 ### Slice 3: Profile + Settings
-- [ ] 3.8 `/@username` public profile page
-- [ ] 3.9 `/settings` page (update username, password)
-- [ ] 3.10 API: `PATCH /api/auth/me`, `GET /api/users/:username`
+- [x] 3.8 `/u/[username]` public profile page (avatar initial, join date, games placeholder)
+- [x] 3.9 `/settings` page (username change + password change with current pw verification)
+- [x] 3.10 API: `PATCH /api/auth/me` (partial update), `GET /api/users/:username` (public profile)
+- [x] 3.11 Tests: 9 new tests (profile lookup, case-insensitive, username change, password change, auth checks)
 
 ---
 
@@ -236,7 +237,7 @@
 |-------|----------|--------|
 | 1. Foundation | 2 weeks | ✅ Complete |
 | 2. Auth & Users | 3 weeks | ✅ Complete (reset deferred to pre-beta) |
-| 3. Dashboard & Pages | 2 weeks | 🔵 In Progress |
+| 3. Dashboard & Pages | 2 weeks | ✅ Complete |
 | 4. Game CRUD & Generation | 3 weeks | ⚪ Not Started |
 | 5. Validation & Artifacts | 2 weeks | ⚪ Not Started |
 | 6. Cloud Play (noVNC) | 5-7 weeks | ⚪ Not Started |

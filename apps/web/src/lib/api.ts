@@ -78,6 +78,17 @@ export const api = {
       request<{ message: string }>("/api/auth/logout", { method: "POST" }),
 
     me: () => request<User>("/api/auth/me"),
+
+    updateMe: (data: { username?: string; current_password?: string; new_password?: string }) =>
+      request<User>("/api/auth/me", {
+        method: "PATCH",
+        body: data,
+      }),
+  },
+
+  users: {
+    getProfile: (username: string) =>
+      request<User>(`/api/users/${encodeURIComponent(username)}`),
   },
 
   health: () => request<{ status: string }>("/api/health"),

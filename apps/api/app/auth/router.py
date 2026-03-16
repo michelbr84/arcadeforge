@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.passwords import hash_password, needs_rehash, verify_password
 from app.auth.rate_limit import check_rate_limit
+from app.auth.dependencies import get_current_user
 from app.auth.schemas import (
     AuthMessageResponse,
     LoginRequest,
     RegisterRequest,
+    UpdateMeRequest,
     UserResponse,
 )
 from app.auth.sessions import (
@@ -198,6 +200,52 @@ async def me(request: Request, db: AsyncSession = Depends(get_db)):
 
     if user is None:
         raise HTTPException(status_code=401, detail="User not found.")
+
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        username=user.username,
+        status=user.status,
+        created_at=user.created_at,
+        email_verified_at=user.email_verified_at,
+    )
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    body: UpdateMeRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's profile (partial update).
+
+    Supports: username change, password change.
+    Password change requires current_password for verification.
+    """
+    # Username change
+    if body.username is not None and body.username != user.username:
+        existing = await db.execute(
+            select(User).where(User.username == body.username)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Username already taken.")
+        user.username = body.username
+
+    # Password change
+    if body.new_password is not None:
+        if body.current_password is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Current password is required to set a new password.",
+            )
+        if not verify_password(body.current_password, user.password_hash):
+            raise HTTPException(
+                status_code=400,
+                detail="Current password is incorrect.",
+            )
+        user.password_hash = hash_password(body.new_password)
+
+    db.add(user)
 
     return UserResponse(
         id=str(user.id),

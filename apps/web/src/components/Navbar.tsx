@@ -48,9 +48,18 @@ export default function Navbar() {
                 >
                   Create Game
                 </Link>
-                <span className="text-sm text-gray-400">
+                <Link
+                  href={`/u/${user.username}`}
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
                   @{user.username}
-                </span>
+                </Link>
+                <Link
+                  href="/settings"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Settings
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="text-sm text-gray-400 hover:text-white transition-colors"

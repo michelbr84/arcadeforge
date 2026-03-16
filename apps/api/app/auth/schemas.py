@@ -50,5 +50,37 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UpdateMeRequest(BaseModel):
+    username: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip().lower()
+        if len(v) < 3 or len(v) > 30:
+            raise ValueError("Username must be 3-30 characters")
+        if not re.match(r"^[a-z0-9][a-z0-9_-]*[a-z0-9]$", v):
+            raise ValueError(
+                "Username must start and end with a letter or number, "
+                "and contain only lowercase letters, numbers, hyphens, and underscores"
+            )
+        return v
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if len(v) > 128:
+            raise ValueError("Password must be at most 128 characters")
+        return v
+
+
 class AuthMessageResponse(BaseModel):
     message: str

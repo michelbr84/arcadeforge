@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
+from app.pages.router import router as users_router
 from app.auth.sessions import close_redis
 from app.config import settings
 from app.jobs.queue import close_queue
@@ -36,6 +37,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(auth_router)
+app.include_router(users_router)
 
 
 @app.get("/api/health")
