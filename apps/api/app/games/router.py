@@ -276,6 +276,58 @@ async def delete_game(
     await db.delete(game)
 
 
+# --- Fork ---
+
+
+@router.post("/{game_id}/fork", response_model=GameResponse, status_code=201)
+async def fork_game(
+    game_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fork a public game into the current user's library.
+
+    Creates a new game owned by the user with the latest version's code.
+    """
+    source_game = await _get_game_or_404(game_id, db)
+
+    if source_game.visibility != "public":
+        raise HTTPException(status_code=403, detail="Only public games can be forked.")
+
+    # Get latest version of the source game
+    result = await db.execute(
+        select(GameVersion)
+        .where(GameVersion.game_id == source_game.id)
+        .order_by(GameVersion.version.desc())
+        .limit(1)
+    )
+    source_version = result.scalar_one_or_none()
+
+    # Create forked game
+    forked = Game(
+        owner_user_id=user.id,
+        genre=source_game.genre,
+        title=f"{source_game.title} (fork)",
+        prompt=source_game.prompt,
+        pitch=source_game.pitch,
+        status="ready",
+    )
+    db.add(forked)
+    await db.flush()
+
+    # Copy version as v0
+    if source_version:
+        v0 = GameVersion(
+            game_id=forked.id,
+            version=0,
+            source_code=source_version.source_code,
+            blueprint_json=source_version.blueprint_json,
+        )
+        db.add(v0)
+
+    return _game_response(forked)
+
+
 # --- Validation ---
 
 

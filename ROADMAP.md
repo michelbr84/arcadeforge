@@ -199,10 +199,15 @@
 
 ## Phase 9 — Sharing & Social (1 week)
 
-- [ ] 9.1 Open Graph meta tags for social preview
-- [ ] 9.2 Embed `<iframe>` snippet generator
-- [ ] 9.3 Remix/Fork public games
-- [ ] 9.4 Copy share link
+- [x] 9.1 Open Graph meta tags (og:title, og:description, og:type, twitter:card) via generateMetadata
+- [x] 9.2 Embeddable game player at `/embed/games/[id]` — minimal chrome, no navbar, iframe-ready
+- [x] 9.3 Embed snippet displayed on game overview (copyable HTML)
+- [x] 9.4 Copy share link button on game header
+- [x] 9.5 `POST /api/games/:id/fork` — fork public game into user's library (copies code + metadata)
+- [x] 9.6 Fork button on game detail (public games only, not for owner)
+- [x] 9.7 Embed layout — standalone route group with no navbar/auth for clean iframe embedding
+- [x] 9.8 4 new tests (fork success, private fork blocked, unauth fork blocked, code copied)
+- [x] 9.9 89 total tests passing
 
 ---
 
@@ -287,7 +292,7 @@
 | 6. Cloud Play (noVNC) | 5-7 weeks | ✅ Complete (E2E deferred to Phase 11) |
 | 7. Game Editor | 2 weeks | ✅ Complete (diff viewer deferred) |
 | 8. Public Arcade | 2 weeks | ✅ Complete |
-| 9. Sharing | 1 week | ⚪ Not Started |
+| 9. Sharing | 1 week | ✅ Complete |
 | 10. Security Hardening | 2-3 weeks | ⚪ Not Started |
 | 11. Testing & CI/CD | 2-3 weeks | ⚪ Not Started |
 | 12. Production Launch | 1-2 weeks | ⚪ Not Started |

@@ -33,8 +33,21 @@ export default function GameDetailPage() {
   const [playWsUrl, setPlayWsUrl] = useState<string | null>(null);
   const [playLoading, setPlayLoading] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [forking, setForking] = useState(false);
 
   const isOwner = currentUser?.id === game?.owner_user_id;
+
+  async function handleFork() {
+    if (forking || !gameId) return;
+    setForking(true);
+    try {
+      const forked = await api.games.fork(gameId);
+      window.location.href = `/games/${forked.id}`;
+    } catch {
+      setForking(false);
+    }
+  }
 
   const loadGame = useCallback(async () => {
     if (!gameId) return;
@@ -128,14 +141,35 @@ export default function GameDetailPage() {
             <span className="text-gray-500">{game.play_count} plays</span>
           </div>
         </div>
-        {game.status === "ready" && (
+        <div className="flex items-center gap-2">
+          {game.status === "ready" && (
+            <button
+              onClick={() => setActiveTab("play")}
+              className="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white hover:bg-green-500 transition-colors"
+            >
+              Play
+            </button>
+          )}
           <button
-            onClick={() => setActiveTab("play")}
-            className="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white hover:bg-green-500 transition-colors"
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-gray-500 transition-colors"
           >
-            Play
+            {copied ? "Copied!" : "Share"}
           </button>
-        )}
+          {game.visibility === "public" && !isOwner && (
+            <button
+              onClick={handleFork}
+              disabled={forking}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-gray-500 disabled:opacity-50 transition-colors"
+            >
+              {forking ? "Forking..." : "Fork"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Status banner for non-ready states */}
@@ -258,6 +292,19 @@ export default function GameDetailPage() {
               </div>
             )}
           </section>
+
+          {/* Embed snippet */}
+          {game.visibility === "public" && game.status === "ready" && (
+            <section>
+              <h2 className="text-sm font-medium text-gray-400 mb-2">Embed</h2>
+              <div className="rounded-lg bg-gray-900 border border-gray-800 p-4">
+                <p className="text-xs text-gray-500 mb-2">Copy this HTML to embed this game on your website:</p>
+                <code className="block text-xs text-green-400 bg-gray-950 rounded p-3 overflow-x-auto">
+                  {`<iframe src="${typeof window !== "undefined" ? window.location.origin : "https://arcadeforge.io"}/embed/games/${gameId}" width="820" height="640" frameborder="0" allow="fullscreen"></iframe>`}
+                </code>
+              </div>
+            </section>
+          )}
         </div>
       )}
 

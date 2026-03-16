@@ -207,6 +207,8 @@ export const api = {
 
     versions: (id: string) => request<GameVersion[]>(`/api/games/${id}/versions`),
 
+    fork: (id: string) => request<Game>(`/api/games/${id}/fork`, { method: "POST" }),
+
     createVersion: (id: string, sourceCode: string) =>
       request<GameVersion>(`/api/games/${id}/versions`, {
         method: "POST",
