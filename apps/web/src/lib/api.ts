@@ -195,6 +195,12 @@ export const api = {
 
     versions: (id: string) => request<GameVersion[]>(`/api/games/${id}/versions`),
 
+    createVersion: (id: string, sourceCode: string) =>
+      request<GameVersion>(`/api/games/${id}/versions`, {
+        method: "POST",
+        body: { source_code: sourceCode },
+      }),
+
     delete: (id: string) => request<void>(`/api/games/${id}`, { method: "DELETE" }),
 
     play: (id: string) =>

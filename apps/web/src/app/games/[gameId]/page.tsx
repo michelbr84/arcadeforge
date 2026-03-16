@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, type Game, type GameVersion, type GameStatus, type ValidationRun, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
+import GameCodeEditor from "@/components/GameCodeEditor";
 import GamePlayerNoVNC from "@/components/GamePlayerNoVNC";
 
 const settings_sandbox_ttl = 1800; // 30 minutes default
@@ -331,23 +332,17 @@ export default function GameDetailPage() {
         </div>
       )}
 
-      {/* Code tab */}
+      {/* Code tab — Monaco Editor */}
       {activeTab === "code" && (
         <div>
           {latestVersion?.source_code ? (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-400 font-mono">
-                  main.py (v{latestVersion.version})
-                </span>
-                <span className="text-xs text-gray-500">
-                  {latestVersion.source_code.split("\n").length} lines
-                </span>
-              </div>
-              <pre className="rounded-lg bg-gray-900 border border-gray-800 p-4 text-sm text-gray-300 overflow-x-auto whitespace-pre font-mono leading-relaxed max-h-[600px] overflow-y-auto">
-                {latestVersion.source_code}
-              </pre>
-            </div>
+            <GameCodeEditor
+              gameId={gameId}
+              initialCode={latestVersion.source_code}
+              version={latestVersion.version}
+              readOnly={!isOwner}
+              onSaved={() => loadGame()}
+            />
           ) : (
             <div className="rounded-lg bg-gray-900 border border-gray-800 p-8 text-center text-gray-500">
               {game.status === "ready"

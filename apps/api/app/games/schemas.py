@@ -82,6 +82,20 @@ class GameVersionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CreateVersionRequest(BaseModel):
+    """Request body for saving a new game version."""
+    source_code: str
+
+    @field_validator("source_code")
+    @classmethod
+    def validate_source_code(cls, v: str) -> str:
+        if len(v.strip()) < 10:
+            raise ValueError("Source code must be at least 10 characters")
+        if len(v) > 100_000:
+            raise ValueError("Source code must be under 100KB")
+        return v
+
+
 class GameListResponse(BaseModel):
     games: list[GameResponse]
     total: int

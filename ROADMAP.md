@@ -173,10 +173,14 @@
 
 ## Phase 7 — Game Editor (2 weeks)
 
-- [ ] 7.1 Monaco Editor component
-- [ ] 7.2 Save as new version
-- [ ] 7.3 Version diff viewer
-- [ ] 7.4 Re-validate on save
+- [x] 7.1 Monaco Editor component (`GameCodeEditor.tsx` with @monaco-editor/react)
+- [x] 7.2 `POST /api/games/:id/versions` — save as new version (v1, v2, etc.)
+- [x] 7.3 Code tab replaced with live Monaco editor (read-only for non-owners)
+- [x] 7.4 Auto-validate on save (scanner + enqueue smoke checks)
+- [x] 7.5 Dirty state tracking + "Unsaved changes" indicator
+- [x] 7.6 6 new tests (create version, increments, auth, ownership, listing)
+- [x] 7.7 Fixed version numbering bug (`0 or -1` → explicit `None` check)
+- [ ] 7.8 Version diff viewer (Monaco DiffEditor) — deferred to polish phase
 
 ---
 
@@ -277,7 +281,7 @@
 | 4. Game CRUD & Generation | 3 weeks | ✅ Core complete (WS + LLM deferred) |
 | 5. Validation & Artifacts | 2 weeks | ✅ Core complete (artifact storage deferred) |
 | 6. Cloud Play (noVNC) | 5-7 weeks | ✅ Complete (E2E deferred to Phase 11) |
-| 7. Game Editor | 2 weeks | ⚪ Not Started |
+| 7. Game Editor | 2 weeks | ✅ Complete (diff viewer deferred) |
 | 8. Public Arcade | 2 weeks | ⚪ Not Started |
 | 9. Sharing | 1 week | ⚪ Not Started |
 | 10. Security Hardening | 2-3 weeks | ⚪ Not Started |

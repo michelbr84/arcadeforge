@@ -15,6 +15,7 @@ from app.games.play_schemas import PlaySessionCreatedResponse, PlaySessionRespon
 from app.games.scanner import scan_code
 from app.games.schemas import (
     CreateGameRequest,
+    CreateVersionRequest,
     GameCreatedResponse,
     GameListResponse,
     GameResponse,
@@ -190,6 +191,73 @@ async def list_game_versions(game_id: str, db: AsyncSession = Depends(get_db)):
         )
         for v in versions
     ]
+
+
+@router.post("/{game_id}/versions", response_model=GameVersionResponse, status_code=201)
+async def create_version(
+    game_id: str,
+    body: CreateVersionRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save edited code as a new version of the game.
+
+    - Creates a new game_version row (v1, v2, etc.)
+    - Runs code scanner automatically
+    - Enqueues validation if scan passes
+    """
+    game = await _get_game_or_404(game_id, db)
+
+    if game.owner_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized.")
+
+    # Determine next version number
+    latest_result = await db.execute(
+        select(func.max(GameVersion.version)).where(GameVersion.game_id == game.id)
+    )
+    max_val = latest_result.scalar()
+    next_version = (max_val + 1) if max_val is not None else 0
+
+    # Create version
+    version = GameVersion(
+        game_id=game.id,
+        version=next_version,
+        source_code=body.source_code,
+        blueprint_json=None,
+    )
+    db.add(version)
+    await db.flush()
+
+    # Auto-validate: run scanner
+    scan_result = scan_code(body.source_code)
+    validation = ValidationRun(
+        game_version_id=version.id,
+        status="passed" if scan_result.passed else "completed",
+        scan_passed=scan_result.passed,
+    )
+    db.add(validation)
+
+    # If scan passed, enqueue full smoke-check validation
+    if scan_result.passed:
+        try:
+            queue = await get_queue()
+            await queue.enqueue_job(
+                "validate_game_task",
+                str(validation.id),
+                _job_id=f"val:{validation.id}",
+            )
+            validation.status = "running"
+        except Exception:
+            pass  # Queue not available — scan result still saved
+
+    return GameVersionResponse(
+        id=str(version.id),
+        game_id=str(version.game_id),
+        version=version.version,
+        blueprint_json=version.blueprint_json,
+        source_code=version.source_code,
+        created_at=version.created_at,
+    )
 
 
 @router.delete("/{game_id}", status_code=204)
