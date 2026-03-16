@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build
+.next/
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (local dev storage) — ignore contents, keep structure
+data/workspaces/*
+data/artifacts/*
+data/sandboxes/*
+data/validation/*
+!data/**/.gitkeep
+
+# Docker volumes
+.data/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Logs
+*.log
+
+# MinIO data
+minio-data/

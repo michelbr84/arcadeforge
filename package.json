@@ -1,0 +1,17 @@
+{
+  "name": "arcadeforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generate. Play. Share. AI-powered browser arcade.",
+  "scripts": {
+    "dev": "pnpm --filter @arcadeforge/web dev",
+    "build": "pnpm --filter @arcadeforge/web build",
+    "lint": "pnpm --filter @arcadeforge/web lint",
+    "dev:web": "pnpm --filter @arcadeforge/web dev",
+    "dev:all": "bash scripts/dev.sh"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
