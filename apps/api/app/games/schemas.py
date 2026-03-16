@@ -48,6 +48,8 @@ class GameResponse(BaseModel):
     prompt: str | None = None
     visibility: str
     play_count: int
+    status: str
+    status_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -59,6 +61,14 @@ class GameCreatedResponse(BaseModel):
     game_id: str
     status: str
     message: str
+    status_url: str
+
+
+class GameStatusResponse(BaseModel):
+    """Response for GET /api/games/:id/status."""
+    game_id: str
+    status: str
+    status_message: str | None = None
 
 
 class GameVersionResponse(BaseModel):

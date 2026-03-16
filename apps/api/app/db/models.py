@@ -90,10 +90,12 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     visibility: Mapped[str] = mapped_column(String(20), default="private", nullable=False)
     play_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="queued", nullable=False)
+    status_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     owner: Mapped["User"] = relationship(back_populates="games")
-    versions: Mapped[list["GameVersion"]] = relationship(back_populates="game")
+    versions: Mapped[list["GameVersion"]] = relationship(back_populates="game", cascade="all, delete-orphan")
 
 
 class GameVersion(UUIDPrimaryKeyMixin, Base):

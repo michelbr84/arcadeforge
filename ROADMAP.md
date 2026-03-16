@@ -102,9 +102,13 @@
 - [x] 4.4b Game list API (`GET /api/games`), game delete (`DELETE /api/games/:id`)
 
 ### Slice 2: Worker + persistence
-- [ ] 4.5 Generator worker calls genre_forge (via `asyncio.to_thread()`)
-- [ ] 4.6 Game version v0 created automatically
-- [ ] 4.7 Save generated files to `/data/workspaces/<user_id>/<game_id>/`
+- [x] 4.5 Generator worker calls template engine via `asyncio.to_thread()`
+- [x] 4.6 Game version v0 created automatically with blueprint + source code
+- [x] 4.7 Save generated files to `/data/workspaces/<user_id>/<game_id>/v0/` (atomic via tmpdir)
+- [x] 4.7a Game status field (queued → generating → ready / failed) + migration
+- [x] 4.7b GET /api/games/:id/status endpoint
+- [x] 4.7c Template-based generator for 4 genres with difficulty presets
+- [x] 4.7d 8 new generator tests (49 total passing)
 
 ### Slice 3: Read path
 - [ ] 4.8 Game detail page `/games/:id` (Overview + Code tabs)

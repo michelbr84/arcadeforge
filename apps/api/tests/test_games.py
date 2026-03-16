@@ -76,6 +76,7 @@ async def test_create_game_returns_202(client: AsyncClient):
     data = resp.json()
     assert "game_id" in data
     assert data["status"] == "queued"
+    assert "status_url" in data
     mock_queue.enqueue_job.assert_called_once()
 
 

@@ -15,11 +15,44 @@ from app.games.schemas import (
     GameCreatedResponse,
     GameListResponse,
     GameResponse,
+    GameStatusResponse,
     GameVersionResponse,
 )
 from app.jobs.queue import get_queue
 
 router = APIRouter(prefix="/api/games", tags=["games"])
+
+
+def _game_response(g: Game) -> GameResponse:
+    """Convert a Game ORM model to a GameResponse."""
+    return GameResponse(
+        id=str(g.id),
+        owner_user_id=str(g.owner_user_id),
+        genre=g.genre,
+        title=g.title,
+        pitch=g.pitch,
+        prompt=g.prompt,
+        visibility=g.visibility,
+        play_count=g.play_count,
+        status=g.status,
+        status_message=g.status_message,
+        created_at=g.created_at,
+        updated_at=g.updated_at,
+    )
+
+
+async def _get_game_or_404(game_id: str, db: AsyncSession) -> Game:
+    """Load a game by ID or raise 404."""
+    try:
+        uid = uuid.UUID(game_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid game ID.")
+
+    result = await db.execute(select(Game).where(Game.id == uid))
+    game = result.scalar_one_or_none()
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found.")
+    return game
 
 
 # --- Genres ---
@@ -75,6 +108,7 @@ async def create_game(
         game_id=str(game.id),
         status="queued",
         message="Game creation queued. Generation will begin shortly.",
+        status_url=f"/api/games/{game.id}/status",
     )
 
 
@@ -101,70 +135,37 @@ async def list_my_games(
     games = result.scalars().all()
 
     return GameListResponse(
-        games=[
-            GameResponse(
-                id=str(g.id),
-                owner_user_id=str(g.owner_user_id),
-                genre=g.genre,
-                title=g.title,
-                pitch=g.pitch,
-                prompt=g.prompt,
-                visibility=g.visibility,
-                play_count=g.play_count,
-                created_at=g.created_at,
-                updated_at=g.updated_at,
-            )
-            for g in games
-        ],
+        games=[_game_response(g) for g in games],
         total=total,
     )
 
 
 @router.get("/{game_id}", response_model=GameResponse)
-async def get_game(
-    game_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """Get a game by ID. Public games are visible to all; private games only to owner."""
-    try:
-        uid = uuid.UUID(game_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid game ID.")
+async def get_game(game_id: str, db: AsyncSession = Depends(get_db)):
+    """Get a game by ID."""
+    game = await _get_game_or_404(game_id, db)
+    return _game_response(game)
 
-    result = await db.execute(select(Game).where(Game.id == uid))
-    game = result.scalar_one_or_none()
 
-    if game is None:
-        raise HTTPException(status_code=404, detail="Game not found.")
-
-    return GameResponse(
-        id=str(game.id),
-        owner_user_id=str(game.owner_user_id),
-        genre=game.genre,
-        title=game.title,
-        pitch=game.pitch,
-        prompt=game.prompt,
-        visibility=game.visibility,
-        play_count=game.play_count,
-        created_at=game.created_at,
-        updated_at=game.updated_at,
+@router.get("/{game_id}/status", response_model=GameStatusResponse)
+async def get_game_status(game_id: str, db: AsyncSession = Depends(get_db)):
+    """Get the generation status of a game."""
+    game = await _get_game_or_404(game_id, db)
+    return GameStatusResponse(
+        game_id=str(game.id),
+        status=game.status,
+        status_message=game.status_message,
     )
 
 
 @router.get("/{game_id}/versions", response_model=list[GameVersionResponse])
-async def list_game_versions(
-    game_id: str,
-    db: AsyncSession = Depends(get_db),
-):
+async def list_game_versions(game_id: str, db: AsyncSession = Depends(get_db)):
     """List all versions of a game."""
-    try:
-        uid = uuid.UUID(game_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid game ID.")
+    game = await _get_game_or_404(game_id, db)
 
     result = await db.execute(
         select(GameVersion)
-        .where(GameVersion.game_id == uid)
+        .where(GameVersion.game_id == game.id)
         .order_by(GameVersion.version.desc())
     )
     versions = result.scalars().all()
@@ -189,16 +190,7 @@ async def delete_game(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a game. Only the owner can delete."""
-    try:
-        uid = uuid.UUID(game_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid game ID.")
-
-    result = await db.execute(select(Game).where(Game.id == uid))
-    game = result.scalar_one_or_none()
-
-    if game is None:
-        raise HTTPException(status_code=404, detail="Game not found.")
+    game = await _get_game_or_404(game_id, db)
 
     if game.owner_user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized.")
