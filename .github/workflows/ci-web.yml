@@ -7,6 +7,17 @@ on:
     branches: [main]
 
 jobs:
+  # --- Dependency Review (PR only) ---
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
   # --- Web Frontend ---
   web-build:
     name: Web Build & Typecheck

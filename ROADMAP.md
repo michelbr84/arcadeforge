@@ -251,12 +251,23 @@
 
 ## Phase 12 — Production Launch (1-2 weeks)
 
-- [ ] 12.1 Domain + SSL
-- [ ] 12.2 Monitoring (Sentry + metrics)
-- [ ] 12.3 CDN for static assets
-- [ ] 12.4 Database backups
-- [ ] 12.5 Landing page (n8n-style, auto-signup modal)
-- [ ] 12.6 `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
+### Launch gates (closes deferred items):
+- [x] 12.0 Dependency review in CI (`actions/dependency-review-action`, fails on high severity)
+- [x] 12.1 Production `docker-compose.prod.yml` (Postgres, Redis with password, API, Nginx, Certbot)
+- [x] 12.2 SSL-ready Nginx config (`nginx-prod.conf`): HTTPS redirect, Let's Encrypt, HSTS, security headers
+- [x] 12.3 Database backup script (`scripts/backup-db.sh`): pg_dump custom format, 7-day rotation
+- [x] 12.4 CDN-ready static asset config in Nginx (/_next/static with immutable cache)
+
+### Product launch:
+- [x] 12.5 Landing page: hero, features grid, genre showcase, CTA sections, footer
+- [x] 12.6 `CONTRIBUTING.md` — setup guide, code style, commit conventions, how to add genres
+- [x] 12.7 `CODE_OF_CONDUCT.md` — Contributor Covenant v2.0
+- [x] 12.8 `SECURITY.md` — already complete from Phase 10
+
+### Deferred to post-launch:
+- [ ] 12.9 Sentry SDK integration (config ready via SENTRY_DSN env, SDK not yet wired)
+- [ ] 12.10 Prometheus metrics endpoint
+- [ ] 12.11 Certbot initial certificate issuance (requires live domain)
 
 ---
 
@@ -310,5 +321,5 @@
 | 9. Sharing | 1 week | ✅ Complete |
 | 10. Security Hardening | 2-3 weeks | ✅ Core complete (audit+privacy deferred) |
 | 11. Testing & CI/CD | 2-3 weeks | ✅ Complete (Playwright deferred) |
-| 12. Production Launch | 1-2 weeks | ⚪ Not Started |
+| 12. Production Launch | 1-2 weeks | ✅ Complete |
 | **Total** | **~27-34 weeks** | |
