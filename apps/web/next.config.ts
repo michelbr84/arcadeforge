@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        // Proxy all /api/* requests to the FastAPI backend
+        // This keeps cookies on the same origin (localhost:3000)
+        source: "/api/:path*",
+        destination: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

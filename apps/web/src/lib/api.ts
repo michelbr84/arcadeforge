@@ -1,11 +1,12 @@
 /**
  * API client for ArcadeForge backend.
  *
- * All requests include credentials (cookies) for session auth.
- * Base URL defaults to localhost:8000 in development.
+ * In development, /api/* requests are proxied through Next.js rewrites
+ * to the FastAPI backend, keeping cookies on the same origin.
+ * In production, API_BASE can point directly to the API if same-domain.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 type RequestOptions = {
   method?: string;
