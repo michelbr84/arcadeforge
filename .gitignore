@@ -15,6 +15,7 @@ build/
 .env
 .env.local
 .env.production
+.env.*.local
 
 # IDE
 .vscode/
@@ -33,6 +34,9 @@ data/sandboxes/*
 data/validation/*
 !data/**/.gitkeep
 
+# Backups
+backups/
+
 # Docker volumes
 .data/
 
@@ -46,3 +50,15 @@ htmlcov/
 
 # MinIO data
 minio-data/
+
+# pytest cache
+.pytest_cache/
+
+# Claude audit log
+.claude/audit.log
+
+# Test results
+test-results.xml
+nightly-results.xml
+playwright-report/
+test-results/
