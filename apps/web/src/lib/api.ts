@@ -114,6 +114,24 @@ export type GameList = {
   total: number;
 };
 
+export type ValidationRun = {
+  id: string;
+  game_version_id: string;
+  status: string;
+  scan_passed: boolean | null;
+  report_json_path: string | null;
+  screenshot_path: string | null;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type ScanResult = {
+  passed: boolean;
+  findings: { line: number; pattern: string; severity: string; message: string }[];
+  critical_count: number;
+  high_count: number;
+};
+
 export const api = {
   auth: {
     register: (email: string, username: string, password: string) =>
@@ -161,6 +179,17 @@ export const api = {
     versions: (id: string) => request<GameVersion[]>(`/api/games/${id}/versions`),
 
     delete: (id: string) => request<void>(`/api/games/${id}`, { method: "DELETE" }),
+
+    validate: (id: string) =>
+      request<{ validation_id: string; status: string; message: string }>(
+        `/api/games/${id}/validate`,
+        { method: "POST" },
+      ),
+
+    validations: (id: string) =>
+      request<ValidationRun[]>(`/api/games/${id}/validations`),
+
+    scan: (id: string) => request<ScanResult>(`/api/games/${id}/scan`),
   },
 
   health: () => request<{ status: string }>("/api/health"),

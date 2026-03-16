@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type Game, type GameVersion, type GameStatus, ApiError } from "@/lib/api";
+import { api, type Game, type GameVersion, type GameStatus, type ValidationRun, ApiError } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
 
 const STATUS_LABELS: Record<GameStatus, { label: string; color: string }> = {
   queued: { label: "Queued", color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
@@ -16,21 +17,29 @@ export default function GameDetailPage() {
   const params = useParams();
   const gameId = params.gameId as string;
 
+  const currentUser = useAuthStore((s) => s.user);
+
   const [game, setGame] = useState<Game | null>(null);
   const [versions, setVersions] = useState<GameVersion[]>([]);
+  const [validations, setValidations] = useState<ValidationRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "code">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "code" | "validate">("overview");
+  const [validating, setValidating] = useState(false);
+
+  const isOwner = currentUser?.id === game?.owner_user_id;
 
   const loadGame = useCallback(async () => {
     if (!gameId) return;
     try {
-      const [gameData, versionsData] = await Promise.all([
+      const [gameData, versionsData, validationData] = await Promise.all([
         api.games.get(gameId),
         api.games.versions(gameId).catch(() => []),
+        api.games.validations(gameId).catch(() => []),
       ]);
       setGame(gameData);
       setVersions(versionsData);
+      setValidations(validationData);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load game.");
@@ -38,6 +47,19 @@ export default function GameDetailPage() {
       setLoading(false);
     }
   }, [gameId]);
+
+  async function handleValidate() {
+    if (!gameId || validating) return;
+    setValidating(true);
+    try {
+      await api.games.validate(gameId);
+      await loadGame();
+    } catch {
+      // Error handled via reload
+    } finally {
+      setValidating(false);
+    }
+  }
 
   useEffect(() => {
     loadGame();
@@ -130,7 +152,7 @@ export default function GameDetailPage() {
       {/* Tabs */}
       <div className="border-b border-gray-800 mb-6">
         <div className="flex gap-6">
-          {(["overview", "code"] as const).map((tab) => (
+          {(["overview", "code", "validate"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -255,6 +277,68 @@ export default function GameDetailPage() {
               {game.status === "ready"
                 ? "No source code available."
                 : "Code will appear here once generation completes."}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Validate tab */}
+      {activeTab === "validate" && (
+        <div className="space-y-6">
+          {/* Validate button */}
+          {isOwner && game.status === "ready" && (
+            <button
+              onClick={handleValidate}
+              disabled={validating}
+              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {validating ? "Validating..." : "Run Validation"}
+            </button>
+          )}
+
+          {/* Validation runs */}
+          {validations.length === 0 ? (
+            <div className="rounded-lg bg-gray-900 border border-gray-800 p-8 text-center text-gray-500">
+              No validation runs yet.
+              {isOwner && " Click 'Run Validation' to scan your game code."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {validations.map((v) => (
+                <div
+                  key={v.id}
+                  className="rounded-lg bg-gray-900 border border-gray-800 p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                          v.status === "passed"
+                            ? "bg-green-500/10 text-green-400 border-green-500/20"
+                            : v.status === "failed"
+                              ? "bg-red-500/10 text-red-400 border-red-500/20"
+                              : v.status === "running"
+                                ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                : "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                        }`}
+                      >
+                        {v.status}
+                      </span>
+                      {v.scan_passed !== null && (
+                        <span className="text-xs text-gray-500">
+                          Code scan: {v.scan_passed ? "passed" : "failed"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(v.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {v.report_json_path && (
+                    <p className="text-xs text-gray-500 mt-1">{v.report_json_path}</p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

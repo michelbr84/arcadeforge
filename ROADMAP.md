@@ -116,11 +116,11 @@
 - [x] 4.10 Dashboard shows real game list with status badges, play counts, genre, dates
 - [x] 4.10a Status polling: game detail auto-refreshes when status is queued/generating
 
-### Slice 4: Realtime progress
+### Slice 4: Realtime progress — deferred (polling works, revisit before Phase 6)
 - [ ] 4.11 WebSocket progress channel for generation status
 - [ ] 4.12 Client subscribes while job is running
 
-### Slice 5: Optional/harder
+### Slice 5: Optional/harder — deferred
 - [ ] 4.13 LLM-assist mode (optional, behind `LLM_MODE` env)
 - [ ] 4.14 Async-compatible game loop (WASM-ready from day 1)
 
@@ -130,12 +130,15 @@
 
 **Goal:** Automated game validation with reports, screenshots, and artifacts.
 
-- [ ] 5.1 `POST /api/games/:id/validate` → enqueue to arq validator worker
-- [ ] 5.2 Static code scanner (denylist → evolve to allowlist)
-- [ ] 5.3 Validator worker: SmokeChecker + GameRunner headless
-- [ ] 5.4 Artifact storage (local + S3/MinIO driver)
-- [ ] 5.5 Validation tab on game page (report + screenshot)
-- [ ] 5.6 Auto-validate after generation
+- [x] 5.1 Static code scanner with pluggable strategy (DenylistStrategy, 25+ patterns)
+- [x] 5.2 `POST /api/games/:id/validate` → scanner + arq validator worker
+- [x] 5.3 `POST /api/games/:id/scan` → synchronous scan endpoint
+- [x] 5.4 `GET /api/games/:id/validations` → list validation runs
+- [x] 5.5 Validator worker: structural smoke checks (pygame import, game loop, QUIT handler, display update)
+- [x] 5.6 Validation tab on game detail page (run validation, view results, scan status)
+- [x] 5.7 Auto-validate: scanner runs automatically after generation in generator worker
+- [x] 5.8 17 new tests (13 scanner + 4 validation endpoints) — 66 total passing
+- [ ] 5.9 Artifact storage (screenshots, reports to S3/MinIO) — deferred to Phase 6 prep
 
 ---
 
@@ -258,8 +261,8 @@
 | 1. Foundation | 2 weeks | ✅ Complete |
 | 2. Auth & Users | 3 weeks | ✅ Complete (reset deferred to pre-beta) |
 | 3. Dashboard & Pages | 2 weeks | ✅ Complete |
-| 4. Game CRUD & Generation | 3 weeks | 🔵 In Progress |
-| 5. Validation & Artifacts | 2 weeks | ⚪ Not Started |
+| 4. Game CRUD & Generation | 3 weeks | ✅ Core complete (WS + LLM deferred) |
+| 5. Validation & Artifacts | 2 weeks | ✅ Core complete (artifact storage deferred) |
 | 6. Cloud Play (noVNC) | 5-7 weeks | ⚪ Not Started |
 | 7. Game Editor | 2 weeks | ⚪ Not Started |
 | 8. Public Arcade | 2 weeks | ⚪ Not Started |

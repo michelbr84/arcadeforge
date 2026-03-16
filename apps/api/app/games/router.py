@@ -1,4 +1,4 @@
-"""Game API routes: CRUD, genres, generation."""
+"""Game API routes: CRUD, genres, generation, validation."""
 
 import uuid
 
@@ -7,9 +7,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.db.models import Game, GameVersion, User
+from app.db.models import Game, GameVersion, ValidationRun, User
 from app.db.session import get_db
 from app.games.genres import Genre, get_all_genres, get_genre
+from app.games.scanner import scan_code
 from app.games.schemas import (
     CreateGameRequest,
     GameCreatedResponse,
@@ -17,6 +18,11 @@ from app.games.schemas import (
     GameResponse,
     GameStatusResponse,
     GameVersionResponse,
+)
+from app.games.validation_schemas import (
+    ScanResultResponse,
+    ValidationCreatedResponse,
+    ValidationRunResponse,
 )
 from app.jobs.queue import get_queue
 
@@ -196,3 +202,147 @@ async def delete_game(
         raise HTTPException(status_code=403, detail="Not authorized.")
 
     await db.delete(game)
+
+
+# --- Validation ---
+
+
+@router.post("/{game_id}/validate", response_model=ValidationCreatedResponse, status_code=202)
+async def validate_game(
+    game_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Validate the latest version of a game.
+
+    Runs static code scanner + smoke checks asynchronously.
+    Returns 202 Accepted.
+    """
+    game = await _get_game_or_404(game_id, db)
+
+    if game.owner_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized.")
+
+    # Find latest version
+    result = await db.execute(
+        select(GameVersion)
+        .where(GameVersion.game_id == game.id)
+        .order_by(GameVersion.version.desc())
+        .limit(1)
+    )
+    version = result.scalar_one_or_none()
+    if version is None:
+        raise HTTPException(status_code=400, detail="No versions to validate.")
+
+    # Run scanner immediately (fast, synchronous)
+    scan_result = None
+    if version.source_code:
+        scan_result = scan_code(version.source_code)
+
+    # Create validation run
+    validation = ValidationRun(
+        game_version_id=version.id,
+        status="running" if scan_result and scan_result.passed else "completed",
+        scan_passed=scan_result.passed if scan_result else None,
+        report_json_path=None,
+    )
+    db.add(validation)
+    await db.flush()
+
+    # If scan failed, mark completed immediately with findings
+    if scan_result and not scan_result.passed:
+        validation.status = "completed"
+        return ValidationCreatedResponse(
+            validation_id=str(validation.id),
+            status="completed",
+            message=f"Code scan failed: {scan_result.critical_count} critical, {scan_result.high_count} high severity findings.",
+        )
+
+    # Scan passed — enqueue full validation job
+    queue = await get_queue()
+    await queue.enqueue_job(
+        "validate_game_task",
+        str(validation.id),
+        _job_id=f"val:{validation.id}",
+    )
+
+    return ValidationCreatedResponse(
+        validation_id=str(validation.id),
+        status="running",
+        message="Validation started. Code scan passed.",
+    )
+
+
+@router.get("/{game_id}/validations", response_model=list[ValidationRunResponse])
+async def list_validations(
+    game_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """List validation runs for a game."""
+    game = await _get_game_or_404(game_id, db)
+
+    # Get all version IDs for this game
+    versions_result = await db.execute(
+        select(GameVersion.id).where(GameVersion.game_id == game.id)
+    )
+    version_ids = [v[0] for v in versions_result.all()]
+
+    if not version_ids:
+        return []
+
+    result = await db.execute(
+        select(ValidationRun)
+        .where(ValidationRun.game_version_id.in_(version_ids))
+        .order_by(ValidationRun.created_at.desc())
+    )
+    runs = result.scalars().all()
+
+    return [
+        ValidationRunResponse(
+            id=str(r.id),
+            game_version_id=str(r.game_version_id),
+            status=r.status,
+            scan_passed=r.scan_passed,
+            report_json_path=r.report_json_path,
+            screenshot_path=r.screenshot_path,
+            created_at=r.created_at,
+            completed_at=r.completed_at,
+        )
+        for r in runs
+    ]
+
+
+@router.post("/{game_id}/scan", response_model=ScanResultResponse)
+async def scan_game_code(
+    game_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Run the static code scanner on the latest version (no async job needed)."""
+    game = await _get_game_or_404(game_id, db)
+
+    result = await db.execute(
+        select(GameVersion)
+        .where(GameVersion.game_id == game.id)
+        .order_by(GameVersion.version.desc())
+        .limit(1)
+    )
+    version = result.scalar_one_or_none()
+    if version is None or not version.source_code:
+        raise HTTPException(status_code=400, detail="No code to scan.")
+
+    scan_result = scan_code(version.source_code)
+
+    return ScanResultResponse(
+        passed=scan_result.passed,
+        findings=[
+            {
+                "line": f.line,
+                "pattern": f.pattern,
+                "severity": f.severity,
+                "message": f.message,
+            }
+            for f in scan_result.findings
+        ],
+        critical_count=scan_result.critical_count,
+        high_count=scan_result.high_count,
+    )
