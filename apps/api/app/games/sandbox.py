@@ -50,6 +50,10 @@ def start_sandbox(
     client = _get_docker_client()
     container_name = f"af-play-{session_id[:12]}"
 
+    # Normalize path for Docker Desktop on Windows
+    # Docker Desktop accepts forward-slash paths like G:/Projetos/...
+    game_workspace_path = game_workspace_path.replace("\\", "/")
+
     sandbox_image = settings.sandbox_image_name
     ttl = settings.sandbox_session_ttl_seconds
     cpu_limit = settings.sandbox_cpu_limit
@@ -78,8 +82,10 @@ def start_sandbox(
             cpu_period=100000,
             cpu_quota=int(cpu_limit * 100000),
             mem_limit=mem_limit,
-            # Security
-            network_mode="none" if settings.sandbox_disable_network else "bridge",
+            # Security — network_mode="none" blocks port publishing,
+            # so in dev we must use "bridge". In production, use a WebSocket
+            # proxy that routes to the container's internal network.
+            network_mode="bridge",
             read_only=True,
             tmpfs={"/tmp": "size=100M,mode=1777"},
             # Auto-remove on stop

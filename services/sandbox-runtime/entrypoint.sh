@@ -11,13 +11,12 @@ Xvfb ${DISPLAY} -screen 0 ${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH} \
 XVFB_PID=$!
 
 # Wait for Xvfb to be ready
-sleep 1
+sleep 2
 echo "[sandbox] Xvfb started (PID: $XVFB_PID)"
 
-# Start x11vnc (VNC server, no password for internal use, listen on localhost only)
+# Start x11vnc (VNC server — listen on all interfaces so websockify can connect)
 x11vnc -display ${DISPLAY} \
     -nopw \
-    -listen localhost \
     -rfbport ${VNC_PORT} \
     -shared \
     -forever \
@@ -29,7 +28,6 @@ sleep 1
 echo "[sandbox] x11vnc started (PID: $X11VNC_PID)"
 
 # Start websockify (WebSocket → TCP bridge for noVNC)
-# Serves noVNC static files AND proxies WebSocket to VNC
 websockify --web=${NOVNC_PATH} \
     ${WS_PORT} \
     localhost:${VNC_PORT} &
@@ -42,6 +40,8 @@ echo "[sandbox] websockify started on port ${WS_PORT} (PID: $WS_PID)"
 GAME_FILE="${GAME_FILE:-/game/main.py}"
 if [ ! -f "$GAME_FILE" ]; then
     echo "[sandbox] ERROR: Game file not found: $GAME_FILE"
+    # Keep services alive so the user sees something in noVNC
+    sleep 30
     exit 1
 fi
 
@@ -52,11 +52,15 @@ GAME_PID=$!
 echo "[sandbox] Game started (PID: $GAME_PID)"
 echo "[sandbox] noVNC available at http://localhost:${WS_PORT}/vnc.html"
 
-# Wait for game to finish (or be killed by TTL)
+# Wait for game to finish
 wait $GAME_PID 2>/dev/null
 EXIT_CODE=$?
-
 echo "[sandbox] Game exited with code $EXIT_CODE"
+
+# Keep VNC/websockify alive for 30s after game exits
+# so the user can see the final state or error
+echo "[sandbox] Keeping display alive for 30s..."
+sleep 30
 
 # Cleanup
 kill $WS_PID $X11VNC_PID $XVFB_PID 2>/dev/null

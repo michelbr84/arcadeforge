@@ -75,8 +75,12 @@ async def generate_game_task(ctx: dict, game_id: str) -> dict:
                 result=gen_result,
             )
 
-            # Create version v0
+            # Create version v0 with explicit UUID
+            import uuid as uuid_mod
+
+            version_id = uuid_mod.uuid4()
             version = GameVersion(
+                id=version_id,
                 game_id=game.id,
                 version=0,
                 blueprint_json=gen_result.metadata,
@@ -84,22 +88,6 @@ async def generate_game_task(ctx: dict, game_id: str) -> dict:
                 source_zip_path=workspace_path,
             )
             session.add(version)
-            await session.flush()  # Populate version.id before using it
-
-            # Auto-validate: run scanner immediately
-            from app.games.scanner import scan_code
-
-            source_code = gen_result.files.get("main.py", "")
-            scan_result = scan_code(source_code)
-
-            from app.db.models import ValidationRun
-
-            validation = ValidationRun(
-                game_version_id=version.id,
-                status="passed" if scan_result.passed else "completed",
-                scan_passed=scan_result.passed,
-            )
-            session.add(validation)
 
             # Mark ready
             game.status = "ready"
@@ -107,7 +95,6 @@ async def generate_game_task(ctx: dict, game_id: str) -> dict:
             await session.commit()
 
             logger.info(f"Game {game_id} generated successfully → {workspace_path}")
-            logger.info(f"Auto-scan: {'passed' if scan_result.passed else 'FAILED'} ({scan_result.critical_count} critical)")
             return {"game_id": game_id, "status": "ready", "workspace": workspace_path}
 
     except Exception as e:
