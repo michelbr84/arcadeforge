@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.auth.sessions import close_redis
 from app.config import settings
+from app.games.arcade_router import router as arcade_router
 from app.games.router import router as games_router
 from app.jobs.queue import close_queue
 from app.pages.router import router as users_router
@@ -51,6 +52,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(auth_router)
+app.include_router(arcade_router)
 app.include_router(games_router)
 app.include_router(users_router)
 

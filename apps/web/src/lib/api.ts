@@ -149,6 +149,18 @@ export type PlaySessionInfo = {
   expires_at: string;
 };
 
+export type ArcadeGame = Game & {
+  owner_username: string | null;
+};
+
+export type ArcadeGameList = {
+  games: ArcadeGame[];
+  total: number;
+  query: string;
+  genre: string;
+  sort: string;
+};
+
 export const api = {
   auth: {
     register: (email: string, username: string, password: string) =>
@@ -222,6 +234,19 @@ export const api = {
       request<ValidationRun[]>(`/api/games/${id}/validations`),
 
     scan: (id: string) => request<ScanResult>(`/api/games/${id}/scan`),
+  },
+
+  arcade: {
+    games: (params?: { q?: string; genre?: string; sort?: string; limit?: number; offset?: number }) => {
+      const p = new URLSearchParams();
+      if (params?.q) p.set("q", params.q);
+      if (params?.genre) p.set("genre", params.genre);
+      if (params?.sort) p.set("sort", params.sort);
+      if (params?.limit) p.set("limit", String(params.limit));
+      if (params?.offset) p.set("offset", String(params.offset));
+      const qs = p.toString();
+      return request<ArcadeGameList>(`/api/arcade/games${qs ? `?${qs}` : ""}`);
+    },
   },
 
   health: () => request<{ status: string }>("/api/health"),

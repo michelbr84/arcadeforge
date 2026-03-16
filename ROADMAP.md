@@ -186,10 +186,14 @@
 
 ## Phase 8 — Public Arcade (2 weeks)
 
-- [ ] 8.1 `/arcade` public game listing with thumbnails
-- [ ] 8.2 Search + filter by genre, title
-- [ ] 8.3 Trending sort by `play_count`
-- [ ] 8.4 Guest play (rate limited)
+- [x] 8.1 `GET /api/arcade/games` — public listing with search, genre filter, trending/newest sort
+- [x] 8.2 `/arcade` page with game cards, search bar, genre pills, sort toggle
+- [x] 8.3 Genre placeholder thumbnails (emoji-based, real screenshots deferred to artifact storage)
+- [x] 8.4 Owner username displayed on game cards
+- [x] 8.5 Prompts hidden from public API responses (privacy)
+- [x] 8.6 Guest play rate limiting: 3 sessions/hour per IP, returns 429 + Retry-After
+- [x] 8.7 7 new tests (listing, privacy, search, genre filter, prompt hiding, username, no-auth)
+- [x] 8.8 Suspense boundary for search params SSR compatibility
 
 ---
 
@@ -282,7 +286,7 @@
 | 5. Validation & Artifacts | 2 weeks | ✅ Core complete (artifact storage deferred) |
 | 6. Cloud Play (noVNC) | 5-7 weeks | ✅ Complete (E2E deferred to Phase 11) |
 | 7. Game Editor | 2 weeks | ✅ Complete (diff viewer deferred) |
-| 8. Public Arcade | 2 weeks | ⚪ Not Started |
+| 8. Public Arcade | 2 weeks | ✅ Complete |
 | 9. Sharing | 1 week | ⚪ Not Started |
 | 10. Security Hardening | 2-3 weeks | ⚪ Not Started |
 | 11. Testing & CI/CD | 2-3 weeks | ⚪ Not Started |

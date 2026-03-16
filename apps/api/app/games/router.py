@@ -8,6 +8,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limit import check_rate_limit
 from app.db.models import Game, GameVersion, PlaySession, ValidationRun, User
 from app.db.session import get_db
 from app.games.genres import Genre, get_all_genres, get_genre
@@ -472,6 +473,18 @@ async def start_play_session(
             raise HTTPException(
                 status_code=429,
                 detail=f"Maximum {MAX_CONCURRENT_SESSIONS} concurrent play sessions. Stop an existing session first.",
+            )
+    else:
+        # Guest play: rate limit by IP (3 sessions per hour)
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        if not ip and request.client:
+            ip = request.client.host
+        allowed, remaining = await check_rate_limit(f"guest_play:{ip}", 3, 3600)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="Guest play limit reached. Sign in for more play sessions.",
+                headers={"Retry-After": str(remaining)},
             )
 
     ttl = settings.sandbox_session_ttl_seconds
