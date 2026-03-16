@@ -30,18 +30,18 @@
 
 ### Commit 2: `feat: add docker compose core services (postgres, redis, minio)`
 
-- [ ] 1.9 Docker Compose with PostgreSQL 16, Redis 7, MinIO
-- [ ] 1.10 Health checks for all services
-- [ ] 1.11 Nginx reverse proxy config (`services/reverse-proxy/nginx.conf`)
-- [ ] 1.12 `docker compose up` boots all services cleanly
+- [x] 1.9 Docker Compose with PostgreSQL 16, Redis 7, MinIO
+- [x] 1.10 Health checks for all services
+- [x] 1.11 Nginx reverse proxy config (`services/reverse-proxy/nginx.conf`)
+- [ ] 1.12 `docker compose up` boots all services cleanly (requires Docker Desktop)
 
 ### Commit 3: `feat: initialize FastAPI config and Alembic baseline`
 
-- [ ] 1.13 pydantic-settings config loader (`apps/api/app/config.py`)
-- [ ] 1.14 SQLAlchemy async engine + session setup
-- [ ] 1.15 Alembic init + first migration (users + sessions tables)
-- [ ] 1.16 arq worker stubs (`workers/generator`, `workers/validator`, `workers/sandbox`)
-- [ ] 1.17 API health endpoint (`GET /api/health`)
+- [x] 1.13 pydantic-settings config loader (`apps/api/app/config.py`)
+- [x] 1.14 SQLAlchemy async engine + session setup
+- [x] 1.15 Alembic init + first migration (7 tables: users, sessions, user_pages, games, game_versions, validation_runs, play_sessions)
+- [x] 1.16 arq workers wired to Redis config (`workers/shared_settings.py`)
+- [x] 1.17 API health endpoint with lifespan hooks (`GET /api/health`)
 
 ---
 

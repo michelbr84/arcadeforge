@@ -2,7 +2,16 @@
 
 Manages game play session containers:
 spin up, monitor TTL, clean up.
+
+Run with: arq workers.sandbox.worker.WorkerSettings
 """
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from shared_settings import get_redis_settings
 
 
 async def start_sandbox_task(ctx: dict, play_session_id: str) -> dict:
@@ -21,4 +30,4 @@ class WorkerSettings:
     """arq worker settings."""
 
     functions = [start_sandbox_task, cleanup_sandbox_task]
-    redis_settings = None  # configured from env in Phase 1.3
+    redis_settings = get_redis_settings()
