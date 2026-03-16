@@ -111,9 +111,10 @@
 - [x] 4.7d 8 new generator tests (49 total passing)
 
 ### Slice 3: Read path
-- [ ] 4.8 Game detail page `/games/:id` (Overview + Code tabs)
-- [ ] 4.9 Version history API (`GET /api/games/:id/versions`)
-- [ ] 4.10 Game list on dashboard (replace placeholder)
+- [x] 4.8 Game detail page `/games/:id` (status banners, blueprint metadata, controls, code viewer)
+- [x] 4.9 Version history displayed with metadata
+- [x] 4.10 Dashboard shows real game list with status badges, play counts, genre, dates
+- [x] 4.10a Status polling: game detail auto-refreshes when status is queued/generating
 
 ### Slice 4: Realtime progress
 - [ ] 4.11 WebSocket progress channel for generation status

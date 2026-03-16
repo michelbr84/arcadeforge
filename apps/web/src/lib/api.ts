@@ -70,6 +70,8 @@ export type Genre = {
   icon: string;
 };
 
+export type GameStatus = "queued" | "generating" | "ready" | "failed";
+
 export type Game = {
   id: string;
   owner_user_id: string;
@@ -79,6 +81,8 @@ export type Game = {
   prompt: string | null;
   visibility: string;
   play_count: number;
+  status: GameStatus;
+  status_message: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -87,6 +91,13 @@ export type GameCreated = {
   game_id: string;
   status: string;
   message: string;
+  status_url: string;
+};
+
+export type GameStatusInfo = {
+  game_id: string;
+  status: GameStatus;
+  status_message: string | null;
 };
 
 export type GameVersion = {
@@ -144,6 +155,8 @@ export const api = {
       request<GameList>(`/api/games?limit=${limit}&offset=${offset}`),
 
     get: (id: string) => request<Game>(`/api/games/${id}`),
+
+    status: (id: string) => request<GameStatusInfo>(`/api/games/${id}/status`),
 
     versions: (id: string) => request<GameVersion[]>(`/api/games/${id}/versions`),
 

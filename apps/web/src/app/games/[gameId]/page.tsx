@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type Game, type GameVersion, ApiError } from "@/lib/api";
+import { api, type Game, type GameVersion, type GameStatus, ApiError } from "@/lib/api";
+
+const STATUS_LABELS: Record<GameStatus, { label: string; color: string }> = {
+  queued: { label: "Queued", color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+  generating: { label: "Generating...", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  ready: { label: "Ready", color: "bg-green-500/10 text-green-400 border-green-500/20" },
+  failed: { label: "Failed", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+};
 
 export default function GameDetailPage() {
   const params = useParams();
@@ -15,31 +22,50 @@ export default function GameDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "code">("overview");
 
-  useEffect(() => {
+  const loadGame = useCallback(async () => {
     if (!gameId) return;
-
-    setLoading(true);
-    Promise.all([
-      api.games.get(gameId),
-      api.games.versions(gameId).catch(() => []),
-    ])
-      .then(([gameData, versionsData]) => {
-        setGame(gameData);
-        setVersions(versionsData);
-      })
-      .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load game.");
-      })
-      .finally(() => setLoading(false));
+    try {
+      const [gameData, versionsData] = await Promise.all([
+        api.games.get(gameId),
+        api.games.versions(gameId).catch(() => []),
+      ]);
+      setGame(gameData);
+      setVersions(versionsData);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load game.");
+    } finally {
+      setLoading(false);
+    }
   }, [gameId]);
+
+  useEffect(() => {
+    loadGame();
+  }, [loadGame]);
+
+  // Poll for status while generating
+  useEffect(() => {
+    if (!game || (game.status !== "queued" && game.status !== "generating")) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const status = await api.games.status(gameId);
+        if (status.status !== game.status) {
+          // Status changed — reload full data
+          loadGame();
+        }
+      } catch {
+        // Ignore poll errors
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [game, gameId, loadGame]);
 
   if (loading) {
     return (
       <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-400 text-lg">Loading game...</p>
-          <p className="text-gray-600 text-sm mt-2">Generation may still be in progress.</p>
-        </div>
+        <p className="text-gray-400 text-lg">Loading game...</p>
       </main>
     );
   }
@@ -56,6 +82,8 @@ export default function GameDetailPage() {
   }
 
   const latestVersion = versions.length > 0 ? versions[0] : null;
+  const statusInfo = STATUS_LABELS[game.status] || STATUS_LABELS.queued;
+  const blueprint = latestVersion?.blueprint_json as Record<string, string | Record<string, string>> | null;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -63,13 +91,41 @@ export default function GameDetailPage() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{game.title}</h1>
-          <div className="flex items-center gap-3 mt-2 text-sm text-gray-400">
-            <span className="rounded-full bg-gray-800 px-3 py-0.5 capitalize">{game.genre}</span>
-            <span>{game.play_count} plays</span>
-            <span>{game.visibility}</span>
+          <div className="flex items-center gap-3 mt-2 text-sm">
+            <span className="rounded-full bg-gray-800 px-3 py-0.5 capitalize text-gray-300">{game.genre}</span>
+            <span className={`rounded-full border px-3 py-0.5 ${statusInfo.color}`}>
+              {statusInfo.label}
+            </span>
+            <span className="text-gray-500">{game.play_count} plays</span>
           </div>
         </div>
+        {game.status === "ready" && (
+          <button
+            disabled
+            className="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white opacity-50 cursor-not-allowed"
+            title="Play coming in Phase 6"
+          >
+            Play
+          </button>
+        )}
       </div>
+
+      {/* Status banner for non-ready states */}
+      {game.status === "generating" && (
+        <div className="mb-6 rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3 text-sm text-blue-400">
+          Game is being generated... This page will update automatically.
+        </div>
+      )}
+      {game.status === "failed" && (
+        <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+          Generation failed{game.status_message ? `: ${game.status_message}` : "."}
+        </div>
+      )}
+      {game.status === "queued" && (
+        <div className="mb-6 rounded-lg bg-yellow-500/10 border border-yellow-500/20 px-4 py-3 text-sm text-yellow-400">
+          Game is queued for generation. Waiting for worker...
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-gray-800 mb-6">
@@ -90,13 +146,13 @@ export default function GameDetailPage() {
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* Overview tab */}
       {activeTab === "overview" && (
         <div className="space-y-6">
-          {game.pitch && (
+          {game.status_message && game.status === "ready" && (
             <section>
-              <h2 className="text-sm font-medium text-gray-400 mb-2">Description</h2>
-              <p className="text-gray-200">{game.pitch}</p>
+              <h2 className="text-sm font-medium text-gray-400 mb-2">Summary</h2>
+              <p className="text-gray-200">{game.status_message}</p>
             </section>
           )}
 
@@ -109,8 +165,44 @@ export default function GameDetailPage() {
             </section>
           )}
 
+          {/* Blueprint metadata */}
+          {blueprint && (
+            <section>
+              <h2 className="text-sm font-medium text-gray-400 mb-2">Game Info</h2>
+              <div className="grid grid-cols-2 gap-4">
+                {blueprint.difficulty && (
+                  <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+                    <p className="text-xs text-gray-500">Difficulty</p>
+                    <p className="text-sm font-medium capitalize">{String(blueprint.difficulty)}</p>
+                  </div>
+                )}
+                {blueprint.entrypoint && (
+                  <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+                    <p className="text-xs text-gray-500">Entrypoint</p>
+                    <p className="text-sm font-mono">{String(blueprint.entrypoint)}</p>
+                  </div>
+                )}
+                {blueprint.controls && (
+                  <div className="rounded-lg bg-gray-900 border border-gray-800 p-3 col-span-2">
+                    <p className="text-xs text-gray-500 mb-1">Controls</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(blueprint.controls as Record<string, string>).map(([key, val]) => (
+                        <span key={key} className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
+                          <span className="text-gray-500">{key}:</span> {val}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Versions */}
           <section>
-            <h2 className="text-sm font-medium text-gray-400 mb-2">Versions</h2>
+            <h2 className="text-sm font-medium text-gray-400 mb-2">
+              Versions ({versions.length})
+            </h2>
             {versions.length === 0 ? (
               <div className="rounded-lg bg-gray-900 border border-gray-800 p-6 text-center text-gray-500">
                 No versions yet. Generation may still be in progress.
@@ -122,7 +214,14 @@ export default function GameDetailPage() {
                     key={v.id}
                     className="flex items-center justify-between rounded-lg bg-gray-900 border border-gray-800 px-4 py-3"
                   >
-                    <span className="text-sm font-medium">v{v.version}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium font-mono">v{v.version}</span>
+                      {v.blueprint_json && (
+                        <span className="text-xs text-gray-500">
+                          {String((v.blueprint_json as Record<string, string>)?.difficulty || "")}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-500">
                       {new Date(v.created_at).toLocaleString()}
                     </span>
@@ -134,15 +233,28 @@ export default function GameDetailPage() {
         </div>
       )}
 
+      {/* Code tab */}
       {activeTab === "code" && (
         <div>
           {latestVersion?.source_code ? (
-            <pre className="rounded-lg bg-gray-900 border border-gray-800 p-4 text-sm text-gray-300 overflow-x-auto whitespace-pre-wrap">
-              {latestVersion.source_code}
-            </pre>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-400 font-mono">
+                  main.py (v{latestVersion.version})
+                </span>
+                <span className="text-xs text-gray-500">
+                  {latestVersion.source_code.split("\n").length} lines
+                </span>
+              </div>
+              <pre className="rounded-lg bg-gray-900 border border-gray-800 p-4 text-sm text-gray-300 overflow-x-auto whitespace-pre font-mono leading-relaxed max-h-[600px] overflow-y-auto">
+                {latestVersion.source_code}
+              </pre>
+            </div>
           ) : (
             <div className="rounded-lg bg-gray-900 border border-gray-800 p-8 text-center text-gray-500">
-              No code available yet. Generation may still be in progress.
+              {game.status === "ready"
+                ? "No source code available."
+                : "Code will appear here once generation completes."}
             </div>
           )}
         </div>
