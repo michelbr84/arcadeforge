@@ -60,6 +60,49 @@ export type User = {
   email_verified_at: string | null;
 };
 
+// --- Games API ---
+
+export type Genre = {
+  id: string;
+  name: string;
+  description: string;
+  difficulty_options: string[];
+  icon: string;
+};
+
+export type Game = {
+  id: string;
+  owner_user_id: string;
+  genre: string;
+  title: string;
+  pitch: string | null;
+  prompt: string | null;
+  visibility: string;
+  play_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameCreated = {
+  game_id: string;
+  status: string;
+  message: string;
+};
+
+export type GameVersion = {
+  id: string;
+  game_id: string;
+  version: number;
+  blueprint_json: Record<string, unknown> | null;
+  source_code: string | null;
+  created_at: string;
+};
+
+export type GameList = {
+  games: Game[];
+  total: number;
+};
+
 export const api = {
   auth: {
     register: (email: string, username: string, password: string) =>
@@ -89,6 +132,22 @@ export const api = {
   users: {
     getProfile: (username: string) =>
       request<User>(`/api/users/${encodeURIComponent(username)}`),
+  },
+
+  games: {
+    genres: () => request<Genre[]>("/api/games/genres"),
+
+    create: (data: { genre: string; title: string; prompt: string; difficulty?: string }) =>
+      request<GameCreated>("/api/games", { method: "POST", body: data }),
+
+    list: (limit = 20, offset = 0) =>
+      request<GameList>(`/api/games?limit=${limit}&offset=${offset}`),
+
+    get: (id: string) => request<Game>(`/api/games/${id}`),
+
+    versions: (id: string) => request<GameVersion[]>(`/api/games/${id}/versions`),
+
+    delete: (id: string) => request<void>(`/api/games/${id}`, { method: "DELETE" }),
   },
 
   health: () => request<{ status: string }>("/api/health"),

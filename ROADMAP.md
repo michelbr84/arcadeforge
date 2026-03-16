@@ -93,16 +93,31 @@
 
 **Goal:** Users create games via prompt+genre, stored with versioning.
 
-- [ ] 4.1 Genre catalog API (`GET /api/genres`)
-- [ ] 4.2 Create game form (genre selector, prompt, params)
-- [ ] 4.3 `POST /api/games` → enqueue to arq generator worker
-- [ ] 4.4 Generator worker: calls genre_forge, saves to `/data/workspaces/`
-- [ ] 4.5 Game version v0 created automatically
-- [ ] 4.6 LLM-assist mode (optional, behind `LLM_MODE` env)
-- [ ] 4.7 Game detail page `/games/:id` (Overview + Code tabs)
-- [ ] 4.8 Version history API
-- [ ] 4.9 Real-time generation progress (WebSocket/SSE)
-- [ ] 4.10 Async-compatible game loop (WASM-ready from day 1)
+### Slice 1: Creation pipeline
+- [x] 4.1 Genre catalog API (`GET /api/genres`, `GET /api/genres/:id`)
+- [x] 4.2 `POST /api/games` → 202 Accepted, enqueue arq generator job
+- [x] 4.3 Create game form (`/create` — genre selector, title, prompt, difficulty)
+- [x] 4.4 Tests: 12 new tests (genres, create, list, detail, delete, auth) — 41 total passing
+- [x] 4.4a Game detail page `/games/[gameId]` (Overview + Code tabs)
+- [x] 4.4b Game list API (`GET /api/games`), game delete (`DELETE /api/games/:id`)
+
+### Slice 2: Worker + persistence
+- [ ] 4.5 Generator worker calls genre_forge (via `asyncio.to_thread()`)
+- [ ] 4.6 Game version v0 created automatically
+- [ ] 4.7 Save generated files to `/data/workspaces/<user_id>/<game_id>/`
+
+### Slice 3: Read path
+- [ ] 4.8 Game detail page `/games/:id` (Overview + Code tabs)
+- [ ] 4.9 Version history API (`GET /api/games/:id/versions`)
+- [ ] 4.10 Game list on dashboard (replace placeholder)
+
+### Slice 4: Realtime progress
+- [ ] 4.11 WebSocket progress channel for generation status
+- [ ] 4.12 Client subscribes while job is running
+
+### Slice 5: Optional/harder
+- [ ] 4.13 LLM-assist mode (optional, behind `LLM_MODE` env)
+- [ ] 4.14 Async-compatible game loop (WASM-ready from day 1)
 
 ---
 
@@ -238,7 +253,7 @@
 | 1. Foundation | 2 weeks | ✅ Complete |
 | 2. Auth & Users | 3 weeks | ✅ Complete (reset deferred to pre-beta) |
 | 3. Dashboard & Pages | 2 weeks | ✅ Complete |
-| 4. Game CRUD & Generation | 3 weeks | ⚪ Not Started |
+| 4. Game CRUD & Generation | 3 weeks | 🔵 In Progress |
 | 5. Validation & Artifacts | 2 weeks | ⚪ Not Started |
 | 6. Cloud Play (noVNC) | 5-7 weeks | ⚪ Not Started |
 | 7. Game Editor | 2 weeks | ⚪ Not Started |

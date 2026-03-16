@@ -35,9 +35,12 @@ export default function DashboardPage() {
             Welcome back, @{user.username}
           </p>
         </div>
-        <button className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-500 transition-colors">
+        <a
+          href="/create"
+          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-500 transition-colors"
+        >
           Create Game
-        </button>
+        </a>
       </div>
 
       {/* My Games — placeholder grid */}

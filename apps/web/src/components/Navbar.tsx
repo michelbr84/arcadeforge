@@ -43,7 +43,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/create"
                   className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
                 >
                   Create Game
