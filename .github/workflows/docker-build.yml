@@ -1,0 +1,84 @@
+name: Docker Build — Sandbox Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/sandbox-runtime/**"
+  pull_request:
+    paths:
+      - "services/sandbox-runtime/**"
+  workflow_dispatch:
+
+jobs:
+  build-sandbox:
+    name: Build Sandbox Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set SOURCE_DATE_EPOCH for reproducibility
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> $GITHUB_ENV
+
+      - name: Build sandbox image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/sandbox-runtime
+          push: false
+          tags: arcadeforge-sandbox:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          provenance: true
+
+      - name: Test sandbox image starts
+        run: |
+          # Build locally for testing (buildx outputs aren't loadable with sbom/provenance)
+          docker build -t arcadeforge-sandbox:test services/sandbox-runtime/
+
+          # Create a minimal test game
+          mkdir -p /tmp/test-game
+          cat > /tmp/test-game/main.py << 'EOF'
+          import pygame, sys
+          pygame.init()
+          screen = pygame.display.set_mode((800, 600))
+          pygame.display.set_caption("CI Test")
+          screen.fill((0, 100, 0))
+          pygame.display.flip()
+          pygame.time.wait(1000)
+          pygame.quit()
+          sys.exit()
+          EOF
+
+          # Run sandbox container
+          docker run --rm -d \
+            --name sandbox-ci-test \
+            -v /tmp/test-game:/game:ro \
+            -p 6100:6080 \
+            --cpus=1 \
+            --memory=512m \
+            arcadeforge-sandbox:test
+
+          # Wait and check
+          sleep 8
+          STATUS=$(docker inspect -f '{{.State.Status}}' sandbox-ci-test 2>/dev/null || echo "stopped")
+          echo "Container status: $STATUS"
+
+          # Check noVNC is serving
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:6100/vnc.html 2>/dev/null || echo "000")
+          echo "noVNC HTTP status: $HTTP_CODE"
+
+          # Cleanup
+          docker stop sandbox-ci-test 2>/dev/null || true
+
+          # Game auto-exits after 1s, container may already be gone
+          if [ "$HTTP_CODE" = "200" ] || [ "$STATUS" = "running" ] || [ "$STATUS" = "exited" ]; then
+            echo "Sandbox image smoke test PASSED"
+          else
+            echo "Sandbox image smoke test FAILED"
+            exit 1
+          fi

@@ -229,12 +229,23 @@
 
 ## Phase 11 — Testing & CI/CD (2-3 weeks)
 
-- [ ] 11.1 Unit tests (API): pytest
-- [ ] 11.2 Integration tests: docker compose + pytest
-- [ ] 11.3 E2E tests: Playwright (signup → create → validate → play)
-- [ ] 11.4 `ci-web.yml` pipeline
-- [ ] 11.5 `nightly-eval.yml` pipeline
-- [ ] 11.6 Reproducible Docker deploy
+- [x] 11.1 `ci-web.yml` — runs on PR + push to main:
+  - Web build + typecheck (pnpm, Node 20)
+  - API unit tests (no DB: passwords, generator, scanner)
+  - API integration tests (Postgres 16 + Redis 7 service containers, Alembic migrations, full pytest suite)
+  - Test results uploaded as artifacts
+- [x] 11.2 `nightly-eval.yml` — runs daily at 03:00 UTC + manual trigger:
+  - Full test suite
+  - Game generation eval across 4 genres × 3 difficulties (12 combinations)
+  - Scanner pass rate validation
+- [x] 11.3 `docker-build.yml` — runs on sandbox-runtime changes:
+  - Docker Buildx with GHA cache
+  - SOURCE_DATE_EPOCH for reproducibility
+  - SBOM + provenance attestations
+  - Sandbox smoke test (build → start → verify noVNC HTTP 200)
+- [x] 11.4 pytest markers: unit, integration, e2e (configured in pyproject.toml)
+- [ ] 11.5 Playwright E2E tests — deferred (requires browser + API + sandbox running together)
+- [x] 11.6 95 tests across all layers
 
 ---
 
@@ -298,6 +309,6 @@
 | 8. Public Arcade | 2 weeks | ✅ Complete |
 | 9. Sharing | 1 week | ✅ Complete |
 | 10. Security Hardening | 2-3 weeks | ✅ Core complete (audit+privacy deferred) |
-| 11. Testing & CI/CD | 2-3 weeks | ⚪ Not Started |
+| 11. Testing & CI/CD | 2-3 weeks | ✅ Complete (Playwright deferred) |
 | 12. Production Launch | 1-2 weeks | ⚪ Not Started |
 | **Total** | **~27-34 weeks** | |

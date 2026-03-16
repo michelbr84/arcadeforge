@@ -33,3 +33,8 @@ build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests (no DB or external services required)",
+    "integration: Integration tests (requires Postgres + Redis)",
+    "e2e: End-to-end browser tests (requires Playwright)",
+]
