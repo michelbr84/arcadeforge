@@ -13,7 +13,10 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 
-TEST_DB_URL = settings.database_url
+# Use a separate test database so tests don't destroy dev data
+import os
+_test_db = os.environ.get("TEST_DATABASE_URL", settings.database_url.replace("/arcadeforge", "/arcadeforge_test"))
+TEST_DB_URL = _test_db
 
 
 @pytest_asyncio.fixture(autouse=True)
