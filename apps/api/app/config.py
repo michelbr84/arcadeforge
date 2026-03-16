@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     storage_driver: str = "local"
     storage_local_path: str = "./data"
 
+    # Sandbox
+    sandbox_image_name: str = "arcadeforge-sandbox:latest"
+    sandbox_session_ttl_seconds: int = 1800
+    sandbox_cpu_limit: float = 1.0
+    sandbox_mem_limit_mb: int = 1024
+    sandbox_disable_network: bool = True
+    sandbox_ws_base_url: str = "ws://localhost"
+
     # Logging
     log_level: str = "INFO"
 

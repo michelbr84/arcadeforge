@@ -1,15 +1,17 @@
-"""Game API routes: CRUD, genres, generation, validation."""
+"""Game API routes: CRUD, genres, generation, validation, play."""
 
 import uuid
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.db.models import Game, GameVersion, ValidationRun, User
+from app.db.models import Game, GameVersion, PlaySession, ValidationRun, User
 from app.db.session import get_db
 from app.games.genres import Genre, get_all_genres, get_genre
+from app.games.play_schemas import PlaySessionCreatedResponse, PlaySessionResponse
 from app.games.scanner import scan_code
 from app.games.schemas import (
     CreateGameRequest,
@@ -24,6 +26,7 @@ from app.games.validation_schemas import (
     ValidationCreatedResponse,
     ValidationRunResponse,
 )
+from app.config import settings
 from app.jobs.queue import get_queue
 
 router = APIRouter(prefix="/api/games", tags=["games"])
@@ -346,3 +349,133 @@ async def scan_game_code(
         critical_count=scan_result.critical_count,
         high_count=scan_result.high_count,
     )
+
+
+# --- Play Sessions ---
+
+
+@router.post("/{game_id}/play", response_model=PlaySessionCreatedResponse, status_code=202)
+async def start_play_session(
+    game_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Start a play session for a game.
+
+    Creates a sandbox container and returns a WebSocket URL for noVNC.
+    Authentication optional (guests can play public games, rate limited).
+    """
+    game = await _get_game_or_404(game_id, db)
+
+    if game.status != "ready":
+        raise HTTPException(status_code=400, detail="Game is not ready to play.")
+
+    # Find latest version
+    result = await db.execute(
+        select(GameVersion)
+        .where(GameVersion.game_id == game.id)
+        .order_by(GameVersion.version.desc())
+        .limit(1)
+    )
+    version = result.scalar_one_or_none()
+    if version is None:
+        raise HTTPException(status_code=400, detail="No game version available.")
+
+    # Get user_id if authenticated (optional for public games)
+    user_id = None
+    from app.auth.sessions import COOKIE_NAME, get_session
+    session_id = request.cookies.get(COOKIE_NAME)
+    if session_id:
+        session_data = await get_session(session_id)
+        if session_data:
+            user_id = uuid.UUID(session_data["user_id"])
+
+    ttl = settings.sandbox_session_ttl_seconds
+    now = datetime.now(timezone.utc)
+
+    # Create play session record
+    play_session = PlaySession(
+        game_version_id=version.id,
+        user_id=user_id,
+        status="starting",
+        expires_at=now + timedelta(seconds=ttl),
+    )
+    db.add(play_session)
+    await db.flush()
+
+    # Enqueue sandbox start job
+    queue = await get_queue()
+    await queue.enqueue_job(
+        "start_sandbox_task",
+        str(play_session.id),
+        _job_id=f"play:{play_session.id}",
+    )
+
+    # Increment play count
+    await db.execute(
+        update(Game).where(Game.id == game.id).values(play_count=Game.play_count + 1)
+    )
+
+    return PlaySessionCreatedResponse(
+        session_id=str(play_session.id),
+        status="starting",
+        message="Play session starting. Connect via WebSocket when ready.",
+    )
+
+
+@router.get("/{game_id}/play/{session_id}", response_model=PlaySessionResponse)
+async def get_play_session(
+    game_id: str,
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the status of a play session."""
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID.")
+
+    result = await db.execute(
+        select(PlaySession).where(PlaySession.id == sid)
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Play session not found.")
+
+    return PlaySessionResponse(
+        id=str(session.id),
+        game_version_id=str(session.game_version_id),
+        status=session.status,
+        ws_url=session.ws_url,
+        sandbox_ref=session.sandbox_ref,
+        created_at=session.created_at,
+        expires_at=session.expires_at,
+    )
+
+
+@router.post("/{game_id}/play/{session_id}/stop", status_code=200)
+async def stop_play_session(
+    game_id: str,
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Stop a play session and clean up the sandbox."""
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID.")
+
+    result = await db.execute(
+        select(PlaySession).where(PlaySession.id == sid)
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Play session not found.")
+
+    if session.sandbox_ref and session.status == "running":
+        import asyncio
+        from app.games.sandbox import stop_sandbox
+        await asyncio.to_thread(stop_sandbox, session.sandbox_ref)
+
+    session.status = "stopped"
+    return {"message": "Session stopped."}

@@ -146,15 +146,26 @@
 
 **Goal:** Users play games in-browser via server-side sandbox container.
 
-- [ ] 6.1 Sandbox Docker image (Xvfb + VNC + websockify + pygame)
-- [ ] 6.2 `POST /api/games/:id/play` → enqueue to arq sandbox worker
-- [ ] 6.3 Sandbox worker: spin up container, return ws_url
-- [ ] 6.4 `GamePlayerNoVNC.tsx` — noVNC embed component
-- [ ] 6.5 Session lifecycle (TTL, auto-cleanup, kill switch)
-- [ ] 6.6 Resource limits (CPU, memory, no network)
-- [ ] 6.7 Security: seccomp, apparmor, non-root, read-only FS
-- [ ] 6.8 Increment `play_count` on session start
-- [ ] 6.9 Nginx WebSocket proxy for `/play/ws/*`
+### Milestone 1: Sandbox image + play pipeline (complete)
+- [x] 6.1 Sandbox Docker image (Python + pygame + Xvfb + x11vnc + websockify + noVNC)
+- [x] 6.2 Security baseline: non-root user, seccomp profile, read-only FS, tmpfs /tmp
+- [x] 6.3 Sandbox orchestrator (`sandbox.py`): start/stop/status + port allocation
+- [x] 6.4 `POST /api/games/:id/play` → 202 Accepted, enqueue sandbox worker
+- [x] 6.5 `GET /api/games/:id/play/:sessionId` → poll session status + ws_url
+- [x] 6.6 `POST /api/games/:id/play/:sessionId/stop` → kill container
+- [x] 6.7 Sandbox worker: start container with game mounted read-only, return ws_url
+- [x] 6.8 `GamePlayerNoVNC.tsx` — iframe-based noVNC embed with status indicator
+- [x] 6.9 Play tab on game detail page with "Play Now" button + session polling
+- [x] 6.10 `play_count` incremented on session start
+- [x] 6.11 Nginx WebSocket proxy with proper Upgrade headers + 30min timeout
+- [x] 6.12 Resource limits: CPU quota, memory limit, network=none (configurable)
+
+### Milestone 2: Hardening + testing (next)
+- [ ] 6.13 Build and test sandbox image on Docker Desktop
+- [ ] 6.14 TTL reaper: cron/background task to kill expired containers
+- [ ] 6.15 Max concurrent sessions per user
+- [ ] 6.16 Integration tests for play session lifecycle
+- [ ] 6.17 E2E test: create game → play → verify noVNC renders
 
 ---
 
@@ -263,7 +274,7 @@
 | 3. Dashboard & Pages | 2 weeks | ✅ Complete |
 | 4. Game CRUD & Generation | 3 weeks | ✅ Core complete (WS + LLM deferred) |
 | 5. Validation & Artifacts | 2 weeks | ✅ Core complete (artifact storage deferred) |
-| 6. Cloud Play (noVNC) | 5-7 weeks | ⚪ Not Started |
+| 6. Cloud Play (noVNC) | 5-7 weeks | 🔵 In Progress |
 | 7. Game Editor | 2 weeks | ⚪ Not Started |
 | 8. Public Arcade | 2 weeks | ⚪ Not Started |
 | 9. Sharing | 1 week | ⚪ Not Started |

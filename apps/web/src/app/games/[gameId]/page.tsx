@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, type Game, type GameVersion, type GameStatus, type ValidationRun, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
+import GamePlayerNoVNC from "@/components/GamePlayerNoVNC";
+
+const settings_sandbox_ttl = 1800; // 30 minutes default
 
 const STATUS_LABELS: Record<GameStatus, { label: string; color: string }> = {
   queued: { label: "Queued", color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
@@ -24,7 +27,10 @@ export default function GameDetailPage() {
   const [validations, setValidations] = useState<ValidationRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "code" | "validate">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "play" | "code" | "validate">("overview");
+  const [playSessionId, setPlaySessionId] = useState<string | null>(null);
+  const [playWsUrl, setPlayWsUrl] = useState<string | null>(null);
+  const [playLoading, setPlayLoading] = useState(false);
   const [validating, setValidating] = useState(false);
 
   const isOwner = currentUser?.id === game?.owner_user_id;
@@ -123,9 +129,8 @@ export default function GameDetailPage() {
         </div>
         {game.status === "ready" && (
           <button
-            disabled
-            className="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white opacity-50 cursor-not-allowed"
-            title="Play coming in Phase 6"
+            onClick={() => setActiveTab("play")}
+            className="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white hover:bg-green-500 transition-colors"
           >
             Play
           </button>
@@ -152,7 +157,7 @@ export default function GameDetailPage() {
       {/* Tabs */}
       <div className="border-b border-gray-800 mb-6">
         <div className="flex gap-6">
-          {(["overview", "code", "validate"] as const).map((tab) => (
+          {(["overview", "play", "code", "validate"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -252,6 +257,77 @@ export default function GameDetailPage() {
               </div>
             )}
           </section>
+        </div>
+      )}
+
+      {/* Play tab */}
+      {activeTab === "play" && (
+        <div>
+          {game.status !== "ready" ? (
+            <div className="rounded-lg bg-gray-900 border border-gray-800 p-8 text-center text-gray-500">
+              Game must be in &quot;ready&quot; state to play.
+            </div>
+          ) : playWsUrl ? (
+            <div>
+              <GamePlayerNoVNC
+                wsUrl={playWsUrl}
+                onDisconnect={async () => {
+                  if (playSessionId) {
+                    await api.games.stopPlay(gameId, playSessionId).catch(() => {});
+                  }
+                  setPlayWsUrl(null);
+                  setPlaySessionId(null);
+                }}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Session will auto-terminate after {Math.round(settings_sandbox_ttl / 60)} minutes.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg bg-gray-900 border border-gray-800 p-12 text-center">
+              <p className="text-gray-300 text-lg mb-4">Ready to play?</p>
+              <button
+                onClick={async () => {
+                  setPlayLoading(true);
+                  try {
+                    const result = await api.games.play(gameId);
+                    setPlaySessionId(result.session_id);
+                    // Poll for session to be ready
+                    const pollInterval = setInterval(async () => {
+                      try {
+                        const session = await api.games.playSession(gameId, result.session_id);
+                        if (session.status === "running" && session.ws_url) {
+                          clearInterval(pollInterval);
+                          setPlayWsUrl(session.ws_url);
+                          setPlayLoading(false);
+                        } else if (session.status === "failed") {
+                          clearInterval(pollInterval);
+                          setPlayLoading(false);
+                        }
+                      } catch {
+                        clearInterval(pollInterval);
+                        setPlayLoading(false);
+                      }
+                    }, 2000);
+                    // Safety: stop polling after 60s
+                    setTimeout(() => {
+                      clearInterval(pollInterval);
+                      setPlayLoading(false);
+                    }, 60000);
+                  } catch {
+                    setPlayLoading(false);
+                  }
+                }}
+                disabled={playLoading}
+                className="rounded-lg bg-green-600 px-8 py-3 font-medium text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {playLoading ? "Starting session..." : "Play Now"}
+              </button>
+              <p className="text-xs text-gray-500 mt-3">
+                Game runs in a secure sandbox container.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

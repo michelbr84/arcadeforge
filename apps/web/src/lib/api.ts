@@ -132,6 +132,23 @@ export type ScanResult = {
   high_count: number;
 };
 
+export type PlaySessionCreated = {
+  session_id: string;
+  status: string;
+  message: string;
+  ws_url: string | null;
+};
+
+export type PlaySessionInfo = {
+  id: string;
+  game_version_id: string;
+  status: string;
+  ws_url: string | null;
+  sandbox_ref: string | null;
+  created_at: string;
+  expires_at: string;
+};
+
 export const api = {
   auth: {
     register: (email: string, username: string, password: string) =>
@@ -179,6 +196,15 @@ export const api = {
     versions: (id: string) => request<GameVersion[]>(`/api/games/${id}/versions`),
 
     delete: (id: string) => request<void>(`/api/games/${id}`, { method: "DELETE" }),
+
+    play: (id: string) =>
+      request<PlaySessionCreated>(`/api/games/${id}/play`, { method: "POST" }),
+
+    playSession: (gameId: string, sessionId: string) =>
+      request<PlaySessionInfo>(`/api/games/${gameId}/play/${sessionId}`),
+
+    stopPlay: (gameId: string, sessionId: string) =>
+      request<{ message: string }>(`/api/games/${gameId}/play/${sessionId}/stop`, { method: "POST" }),
 
     validate: (id: string) =>
       request<{ validation_id: string; status: string; message: string }>(
