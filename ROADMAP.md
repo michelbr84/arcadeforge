@@ -33,7 +33,7 @@
 - [x] 1.9 Docker Compose with PostgreSQL 16, Redis 7, MinIO
 - [x] 1.10 Health checks for all services
 - [x] 1.11 Nginx reverse proxy config (`services/reverse-proxy/nginx.conf`)
-- [ ] 1.12 `docker compose up` boots all services cleanly (requires Docker Desktop)
+- [x] 1.12 `docker compose up` boots all services cleanly ✅ All healthy + Alembic migration verified
 
 ### Commit 3: `feat: initialize FastAPI config and Alembic baseline`
 
@@ -220,8 +220,8 @@
 
 | Phase | Duration | Status |
 |-------|----------|--------|
-| 1. Foundation | 2 weeks | 🔵 In Progress |
-| 2. Auth & Users | 3 weeks | ⚪ Not Started |
+| 1. Foundation | 2 weeks | ✅ Complete |
+| 2. Auth & Users | 3 weeks | 🔵 Up Next |
 | 3. Dashboard & Pages | 2 weeks | ⚪ Not Started |
 | 4. Game CRUD & Generation | 3 weeks | ⚪ Not Started |
 | 5. Validation & Artifacts | 2 weeks | ⚪ Not Started |
