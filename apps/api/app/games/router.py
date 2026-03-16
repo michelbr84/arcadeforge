@@ -390,6 +390,22 @@ async def start_play_session(
         if session_data:
             user_id = uuid.UUID(session_data["user_id"])
 
+    # Enforce max concurrent sessions per user (2 max)
+    MAX_CONCURRENT_SESSIONS = 2
+    if user_id:
+        active_result = await db.execute(
+            select(func.count()).where(
+                PlaySession.user_id == user_id,
+                PlaySession.status.in_(["starting", "running"]),
+            )
+        )
+        active_count = active_result.scalar() or 0
+        if active_count >= MAX_CONCURRENT_SESSIONS:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Maximum {MAX_CONCURRENT_SESSIONS} concurrent play sessions. Stop an existing session first.",
+            )
+
     ttl = settings.sandbox_session_ttl_seconds
     now = datetime.now(timezone.utc)
 

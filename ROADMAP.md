@@ -160,12 +160,14 @@
 - [x] 6.11 Nginx WebSocket proxy with proper Upgrade headers + 30min timeout
 - [x] 6.12 Resource limits: CPU quota, memory limit, network=none (configurable)
 
-### Milestone 2: Hardening + testing (next)
-- [ ] 6.13 Build and test sandbox image on Docker Desktop
-- [ ] 6.14 TTL reaper: cron/background task to kill expired containers
-- [ ] 6.15 Max concurrent sessions per user
-- [ ] 6.16 Integration tests for play session lifecycle
-- [ ] 6.17 E2E test: create game → play → verify noVNC renders
+### Milestone 2: Hardening + testing (complete)
+- [x] 6.13 Built sandbox image on Docker Desktop (684MB, pygame-ce 2.5.7, verified Xvfb+VNC+noVNC)
+- [x] 6.14 TTL reaper: background task kills expired containers + marks sessions expired
+- [x] 6.15 Stale session reaper: cleans up sessions stuck in "starting" > 2 min
+- [x] 6.16 Max concurrent sessions per user (2 max, returns 429)
+- [x] 6.17 Integration tests: 6 play session tests (start, not-ready, play_count, not-found, concurrency, reaper)
+- [x] 6.18 Reaper integrated into FastAPI lifespan as background task
+- [ ] 6.19 E2E test with Playwright — deferred to Phase 11
 
 ---
 
@@ -274,7 +276,7 @@
 | 3. Dashboard & Pages | 2 weeks | ✅ Complete |
 | 4. Game CRUD & Generation | 3 weeks | ✅ Core complete (WS + LLM deferred) |
 | 5. Validation & Artifacts | 2 weeks | ✅ Core complete (artifact storage deferred) |
-| 6. Cloud Play (noVNC) | 5-7 weeks | 🔵 In Progress |
+| 6. Cloud Play (noVNC) | 5-7 weeks | ✅ Complete (E2E deferred to Phase 11) |
 | 7. Game Editor | 2 weeks | ⚪ Not Started |
 | 8. Public Arcade | 2 weeks | ⚪ Not Started |
 | 9. Sharing | 1 week | ⚪ Not Started |

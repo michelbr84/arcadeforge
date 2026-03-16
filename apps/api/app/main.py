@@ -1,21 +1,34 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
-from app.games.router import router as games_router
-from app.pages.router import router as users_router
 from app.auth.sessions import close_redis
 from app.config import settings
+from app.games.router import router as games_router
 from app.jobs.queue import close_queue
+from app.pages.router import router as users_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown hooks."""
+    # Start background tasks
+    from app.games.reaper import reaper_loop
+
+    reaper_task = asyncio.create_task(reaper_loop())
+
     yield
-    # Shutdown: close connections
+
+    # Shutdown: cancel background tasks and close connections
+    reaper_task.cancel()
+    try:
+        await reaper_task
+    except asyncio.CancelledError:
+        pass
+
     await close_queue()
     await close_redis()
 
