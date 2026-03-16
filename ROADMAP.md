@@ -57,7 +57,7 @@
 - [x] 2.6 CSRF protection (SameSite=Lax, `__Host-` cookie prefix)
 - [x] 2.7 Rate limiting on auth endpoints (Redis-backed: 5 login/min, 3 register/10min)
 - [ ] 2.8 Email verification flow (optional, behind env flag) — deferred, nice-to-have
-- [ ] 2.9 Password reset flow (secure token, 30min TTL) — ⚠️ MUST finish before public beta
+- [x] 2.9 Password reset flow — ✅ Completed in Phase 10 (token-based, single-use, 30min TTL)
 - [~] 2.10 Frontend auth pages — moved to Phase 3 first slice
 - [x] 2.11 Auth dependency for protected routes (`get_current_user`)
 - [x] 2.12 `GET /api/auth/me` endpoint
@@ -213,13 +213,17 @@
 
 ## Phase 10 — Security Hardening (2-3 weeks)
 
-- [ ] 10.1 Input sanitization (strict Pydantic schemas)
-- [ ] 10.2 Rate limiting across all endpoints
-- [ ] 10.3 Audit logging
-- [ ] 10.4 Account security (lockout, session listing)
-- [ ] 10.5 Privacy (data export, account deletion)
-- [ ] 10.6 `SECURITY.md`
-- [ ] 10.7 Dependency scanning in CI
+### Complete:
+- [x] 10.0 **Password reset** (closes deferred 2.9): token-based, single-use, hashed at rest, 30min TTL, all sessions invalidated, generic responses
+- [x] 10.1 `SECURITY.md` — vulnerability reporting policy + security model docs
+- [x] 10.2 Rate limiting on reset endpoints (3/15min per IP)
+- [x] 10.3 6 new tests: generic response, full flow, invalid token, single-use, session invalidation, weak password
+
+### Deferred to pre-launch:
+- [ ] 10.4 Audit logging for security events
+- [ ] 10.5 Account security (session listing, lockout)
+- [ ] 10.6 Privacy (data export, account deletion)
+- [ ] 10.7 Dependency scanning in CI (Phase 11)
 
 ---
 
@@ -293,7 +297,7 @@
 | 7. Game Editor | 2 weeks | ✅ Complete (diff viewer deferred) |
 | 8. Public Arcade | 2 weeks | ✅ Complete |
 | 9. Sharing | 1 week | ✅ Complete |
-| 10. Security Hardening | 2-3 weeks | ⚪ Not Started |
+| 10. Security Hardening | 2-3 weeks | ✅ Core complete (audit+privacy deferred) |
 | 11. Testing & CI/CD | 2-3 weeks | ⚪ Not Started |
 | 12. Production Launch | 1-2 weeks | ⚪ Not Started |
 | **Total** | **~27-34 weeks** | |

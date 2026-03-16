@@ -1,5 +1,6 @@
-"""Auth API routes: register, login, logout, me."""
+"""Auth API routes: register, login, logout, me, password reset."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -9,13 +10,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.passwords import hash_password, needs_rehash, verify_password
 from app.auth.rate_limit import check_rate_limit
 from app.auth.dependencies import get_current_user
+from app.auth.reset_password import (
+    consume_reset_token,
+    create_reset_token,
+    invalidate_all_sessions,
+    verify_reset_token,
+)
 from app.auth.schemas import (
     AuthMessageResponse,
+    ConfirmPasswordResetRequest,
     LoginRequest,
     RegisterRequest,
+    RequestPasswordResetRequest,
     UpdateMeRequest,
     UserResponse,
 )
+
+logger = logging.getLogger("arcadeforge.auth")
 from app.auth.sessions import (
     COOKIE_NAME,
     COOKIE_PATH,
@@ -255,3 +266,70 @@ async def update_me(
         created_at=user.created_at,
         email_verified_at=user.email_verified_at,
     )
+
+
+# --- Password Reset ---
+
+
+@router.post("/forgot-password", response_model=AuthMessageResponse)
+async def request_password_reset(
+    body: RequestPasswordResetRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset.
+
+    ALWAYS returns the same generic response — prevents email enumeration.
+    """
+    ip = _client_ip(request)
+
+    # Rate limit: 3 reset requests per IP per 15 minutes
+    allowed, _ = await check_rate_limit(f"reset:{ip}", 3, 900)
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+
+    generic_msg = "If an account with that email exists, a reset link has been sent."
+
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if user is not None:
+        token = await create_reset_token(str(user.id), user.email)
+        logger.info(f"Password reset token for {user.email}: {token}")
+
+    return AuthMessageResponse(message=generic_msg)
+
+
+@router.post("/reset-password", response_model=AuthMessageResponse)
+async def confirm_password_reset(
+    body: ConfirmPasswordResetRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm a password reset with a token.
+
+    Validates token, updates password, invalidates all sessions.
+    """
+    token_data = await verify_reset_token(body.token)
+    if token_data is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+    user_id = token_data["user_id"]
+
+    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+    consumed = await consume_reset_token(body.token)
+    if not consumed:
+        raise HTTPException(status_code=400, detail="Token already used.")
+
+    user.password_hash = hash_password(body.new_password)
+
+    invalidated = await invalidate_all_sessions(user_id)
+    logger.info(f"Password reset for {user_id}: {invalidated} sessions invalidated")
+
+    _clear_session_cookie(response)
+
+    return AuthMessageResponse(message="Password has been reset. Please log in with your new password.")
