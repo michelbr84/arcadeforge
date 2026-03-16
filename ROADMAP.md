@@ -56,9 +56,9 @@
 - [x] 2.5 Session middleware + session ID rotation (CSPRNG 256-bit IDs, rotate on login)
 - [x] 2.6 CSRF protection (SameSite=Lax, `__Host-` cookie prefix)
 - [x] 2.7 Rate limiting on auth endpoints (Redis-backed: 5 login/min, 3 register/10min)
-- [ ] 2.8 Email verification flow (optional, behind env flag) — deferred to later
-- [ ] 2.9 Password reset flow (secure token, 30min TTL) — deferred to later
-- [ ] 2.10 Frontend: `/auth/login`, `/auth/register`, `/auth/forgot-password` — Phase 3
+- [ ] 2.8 Email verification flow (optional, behind env flag) — deferred, nice-to-have
+- [ ] 2.9 Password reset flow (secure token, 30min TTL) — ⚠️ MUST finish before public beta
+- [~] 2.10 Frontend auth pages — moved to Phase 3 first slice
 - [x] 2.11 Auth dependency for protected routes (`get_current_user`)
 - [x] 2.12 `GET /api/auth/me` endpoint
 - [x] 2.13 Integration tests: 20 tests covering register, login, session rotation, logout, /me, rate limits
@@ -66,15 +66,25 @@
 
 ---
 
-## Phase 3 — Dashboard & Personal Pages
+## Phase 3 — Dashboard, Auth Pages & Personal Pages
 
-**Goal:** Authenticated users see dashboard and have a public profile page.
+**Goal:** Frontend auth pages, dashboard, navbar, and public profile. First user-visible slice.
 
-- [ ] 3.1 `/dashboard` page (My Games grid, Create Game CTA)
-- [ ] 3.2 `/@username` public profile page
-- [ ] 3.3 `/settings` page (update email, username, password)
-- [ ] 3.4 Navbar with auth state
-- [ ] 3.5 API: `GET /api/me`, `PATCH /api/me`, `GET /api/users/:username`
+### Slice 1: Auth pages + API client (from Phase 2.10)
+- [x] 3.1 API client library (`apps/web/src/lib/api.ts`)
+- [x] 3.2 `/auth/login` page
+- [x] 3.3 `/auth/register` page
+- [x] 3.4 Auth state management (Zustand store)
+
+### Slice 2: Layout + Dashboard
+- [x] 3.5 Root layout with Navbar (auth-aware: avatar, logout, "Create Game")
+- [x] 3.6 `/dashboard` page (My Games grid placeholder, Create Game CTA)
+- [x] 3.7 Protected route middleware (redirect to /auth/login if not authenticated)
+
+### Slice 3: Profile + Settings
+- [ ] 3.8 `/@username` public profile page
+- [ ] 3.9 `/settings` page (update username, password)
+- [ ] 3.10 API: `PATCH /api/auth/me`, `GET /api/users/:username`
 
 ---
 
@@ -225,8 +235,8 @@
 | Phase | Duration | Status |
 |-------|----------|--------|
 | 1. Foundation | 2 weeks | ✅ Complete |
-| 2. Auth & Users | 3 weeks | 🔵 Up Next |
-| 3. Dashboard & Pages | 2 weeks | ⚪ Not Started |
+| 2. Auth & Users | 3 weeks | ✅ Complete (reset deferred to pre-beta) |
+| 3. Dashboard & Pages | 2 weeks | 🔵 In Progress |
 | 4. Game CRUD & Generation | 3 weeks | ⚪ Not Started |
 | 5. Validation & Artifacts | 2 weeks | ⚪ Not Started |
 | 6. Cloud Play (noVNC) | 5-7 weeks | ⚪ Not Started |
