@@ -49,16 +49,20 @@
 
 **Goal:** Secure email+password registration and login with HttpOnly session cookies.
 
-- [ ] 2.1 Argon2id password hashing (`apps/api/app/auth/passwords.py`)
-- [ ] 2.2 `POST /api/auth/register` endpoint
-- [ ] 2.3 `POST /api/auth/login` → HttpOnly cookie session
-- [ ] 2.4 `POST /api/auth/logout` → invalidate session
-- [ ] 2.5 Session middleware + session ID rotation
-- [ ] 2.6 CSRF protection (SameSite=Lax + token)
-- [ ] 2.7 Rate limiting on auth endpoints
-- [ ] 2.8 Email verification flow (optional, behind env flag)
-- [ ] 2.9 Password reset flow (secure token, 30min TTL)
-- [ ] 2.10 Frontend: `/auth/login`, `/auth/register`, `/auth/forgot-password`
+- [x] 2.1 Argon2id password hashing (`apps/api/app/auth/passwords.py`)
+- [x] 2.2 `POST /api/auth/register` endpoint
+- [x] 2.3 `POST /api/auth/login` → HttpOnly cookie session
+- [x] 2.4 `POST /api/auth/logout` → invalidate session
+- [x] 2.5 Session middleware + session ID rotation (CSPRNG 256-bit IDs, rotate on login)
+- [x] 2.6 CSRF protection (SameSite=Lax, `__Host-` cookie prefix)
+- [x] 2.7 Rate limiting on auth endpoints (Redis-backed: 5 login/min, 3 register/10min)
+- [ ] 2.8 Email verification flow (optional, behind env flag) — deferred to later
+- [ ] 2.9 Password reset flow (secure token, 30min TTL) — deferred to later
+- [ ] 2.10 Frontend: `/auth/login`, `/auth/register`, `/auth/forgot-password` — Phase 3
+- [x] 2.11 Auth dependency for protected routes (`get_current_user`)
+- [x] 2.12 `GET /api/auth/me` endpoint
+- [x] 2.13 Integration tests: 20 tests covering register, login, session rotation, logout, /me, rate limits
+- [x] 2.14 Pydantic schemas with validation (email, username format, password length)
 
 ---
 

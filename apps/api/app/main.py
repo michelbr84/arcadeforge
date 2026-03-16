@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth.router import router as auth_router
+from app.auth.sessions import close_redis
 from app.config import settings
 from app.jobs.queue import close_queue
 
@@ -11,8 +13,9 @@ from app.jobs.queue import close_queue
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown hooks."""
     yield
-    # Shutdown: close arq connection pool
+    # Shutdown: close connections
     await close_queue()
+    await close_redis()
 
 
 app = FastAPI(
@@ -30,6 +33,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Routers
+app.include_router(auth_router)
 
 
 @app.get("/api/health")
