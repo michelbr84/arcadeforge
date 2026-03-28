@@ -17,6 +17,9 @@ _db_url = _db_url.rstrip("?").rstrip("&")
 _connect_args: dict = {}
 if settings.database_ssl:
     _connect_args["ssl"] = True
+else:
+    # Explicitly disable SSL for Fly.io internal Postgres (asyncpg defaults to SSL)
+    _connect_args["ssl"] = False
 
 engine = create_async_engine(
     _db_url,

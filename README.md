@@ -221,29 +221,61 @@ Three GitHub Actions workflows:
 | `nightly-eval.yml` | Daily 03:00 UTC | Full test suite + game generation eval (4 genres x 3 difficulties) |
 | `docker-build.yml` | Sandbox changes | Buildx with SBOM, provenance, and smoke test |
 
-## Production Deployment
+## Cloud Deployment
+
+ArcadeForge runs entirely in the cloud — no local servers needed.
+
+| Component | Service | URL |
+|-----------|---------|-----|
+| Frontend | Vercel | [arcadeforge-web.vercel.app](https://arcadeforge-web.vercel.app) |
+| API | Fly.io | [arcadeforge-api.fly.dev](https://arcadeforge-api.fly.dev) |
+| Database | Fly Postgres | Internal (flycast) |
+| Redis | Upstash | TLS connection |
+| Workers | Fly.io | 3 processes (generator, validator, sandbox) |
+| Sandbox | Fly.io Machines | On-demand containers |
+
+### Deploy from scratch
 
 ```bash
-# 1. Configure production env
+# 1. Install Fly CLI
+powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+fly auth login
+
+# 2. Create apps
+fly apps create arcadeforge-api
+fly apps create arcadeforge-workers
+fly apps create arcadeforge-sandbox
+
+# 3. Create Postgres
+fly postgres create --name arcadeforge-db --region iad --vm-size shared-cpu-1x
+
+# 4. Set secrets (see .env.cloud.example for all vars)
+fly secrets set -a arcadeforge-api APP_ENV=production DATABASE_URL="..." REDIS_URL="..." ...
+
+# 5. Deploy API
+cd apps/api && fly deploy --remote-only
+
+# 6. Run migrations
+fly ssh console -a arcadeforge-api -C "sh -c 'cd /app && alembic upgrade head'"
+
+# 7. Deploy workers
+cd workers && fly deploy --remote-only
+
+# 8. Connect Vercel
+# Import repo at vercel.com/new, set root dir to apps/web
+# Add env var: API_URL=https://arcadeforge-api.fly.dev
+```
+
+See `.env.cloud.example` for all required environment variables.
+
+### Self-hosted (Docker Compose)
+
+```bash
 cp .env.example .env
-# Set real values for APP_SECRET_KEY, POSTGRES_PASSWORD, REDIS_PASSWORD, etc.
+# Edit .env with production values
 
-# 2. Build sandbox image
-docker build -t arcadeforge-sandbox:latest services/sandbox-runtime/
-
-# 3. Start production stack
 docker compose -f infra/docker-compose.prod.yml up -d
-
-# 4. Initial SSL certificate (replace with your domain)
-docker compose -f infra/docker-compose.prod.yml run --rm certbot \
-  certonly --webroot -w /var/www/certbot -d yourdomain.com
-
-# 5. Run migrations
-docker compose -f infra/docker-compose.prod.yml exec api \
-  python -m alembic upgrade head
-
-# 6. Set up automated backups
-bash scripts/backup-db.sh
+docker compose exec api python -m alembic upgrade head
 ```
 
 ## Contributing

@@ -126,15 +126,34 @@ Shell scripts in `workflows/` for batch operations using Claude headless mode:
 
 ## Infrastructure
 
+### Local Development
 - **Dev**: `docker compose -f infra/docker-compose.yml up -d` (Postgres, Redis, MinIO)
 - **API**: `cd apps/api && uvicorn app.main:app --reload --port 8000`
 - **Web**: `pnpm dev:web` (port 3000)
 - **All at once**: `bash scripts/dev.sh`
 
+### Cloud (Production)
+| Service | Platform | Config |
+|---------|----------|--------|
+| Frontend | Vercel | `apps/web/vercel.json` |
+| API | Fly.io | `apps/api/fly.toml` + `Dockerfile.cloud` |
+| Workers | Fly.io | `workers/fly.toml` + `Dockerfile.cloud` |
+| Sandbox | Fly.io Machines | `services/sandbox-runtime/fly.toml` |
+| Database | Fly Postgres | Internal networking (flycast) |
+| Redis | Upstash | TLS via `rediss://` URL |
+| CI/CD | GitHub Actions | `.github/workflows/deploy.yml` |
+
+- **Deploy API**: `cd apps/api && fly deploy --remote-only`
+- **Deploy Workers**: `cd workers && fly deploy --remote-only` (from repo root)
+- **Env vars**: `.env.cloud.example` documents all cloud env vars
+
 ## Key Files
 
 - `ROADMAP.md` — Phase-by-phase delivery plan with checkboxes
-- `.env.example` — All environment variables documented
+- `.env.example` — All environment variables (local dev)
+- `.env.cloud.example` — All environment variables (cloud deployment)
 - `apps/api/app/db/models.py` — Database models (7 tables)
 - `apps/api/app/config.py` — Pydantic settings configuration
+- `apps/api/app/storage.py` — S3/local storage abstraction
+- `apps/api/app/games/sandbox_fly.py` — Fly.io Machines sandbox driver
 - `workers/shared_settings.py` — Shared arq Redis settings

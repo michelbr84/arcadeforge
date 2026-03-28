@@ -1,6 +1,6 @@
 # ArcadeForge — Project Roadmap
 
-> Last updated: 2026-03-16
+> Last updated: 2026-03-28
 
 ## Status Legend
 
@@ -280,6 +280,31 @@
 
 ---
 
+## Phase 13 — Cloud Deployment
+
+**Goal:** Deploy to cloud without local infrastructure. No ports, no Docker Desktop.
+
+- [x] 13.1 Add cloud config settings (S3, Fly.io, cookie domain, DB SSL)
+- [x] 13.2 Create S3 storage abstraction (local filesystem or S3/R2)
+- [x] 13.3 Fix Redis URL parsing for Upstash (TLS + password support)
+- [x] 13.4 Create Fly.io Machines sandbox driver (alternative to Docker)
+- [x] 13.5 Update Next.js rewrite proxy for configurable API_URL
+- [x] 13.6 Add CORS expose_headers and cookie domain/secure config
+- [x] 13.7 Create Dockerfile.cloud and fly.toml for API + workers
+- [x] 13.8 Create GitHub Actions CI/CD (test + deploy to Fly.io)
+- [x] 13.9 Deploy API to Fly.io (`arcadeforge-api.fly.dev`)
+- [x] 13.10 Deploy Postgres to Fly.io + run migrations
+- [x] 13.11 Deploy Redis via Upstash (pay-as-you-go)
+- [x] 13.12 Deploy frontend to Vercel (`arcadeforge-web.vercel.app`)
+- [ ] 13.13 Deploy sandbox image to Fly.io registry
+- [ ] 13.14 Deploy workers to Fly.io
+- [ ] 13.15 Set up Cloudflare R2 for object storage
+- [ ] 13.16 End-to-end verification (register, create game, play)
+
+**Checkpoint:** Full stack running in cloud. API health check passes. Frontend proxies to API.
+
+---
+
 ## Phase 14 — Templates Marketplace (Future)
 
 - [ ] 14.1 Publish genre templates and mechanics modules
@@ -322,4 +347,5 @@
 | 10. Security Hardening | 2-3 weeks | ✅ Core complete (audit+privacy deferred) |
 | 11. Testing & CI/CD | 2-3 weeks | ✅ Complete (Playwright deferred) |
 | 12. Production Launch | 1-2 weeks | ✅ Complete |
-| **Total** | **~27-34 weeks** | |
+| 13. Cloud Deployment | 1 week | [~] In progress |
+| **Total** | **~28-35 weeks** | |
