@@ -1,9 +1,11 @@
 """Game API routes: CRUD, genres, generation, validation, play."""
 
+import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +15,10 @@ from app.db.models import Game, GameVersion, PlaySession, ValidationRun, User
 from app.db.session import get_db
 from app.games.genres import Genre, get_all_genres, get_genre
 from app.games.play_schemas import PlaySessionCreatedResponse, PlaySessionResponse
+from app.games.generator import GenerationResult, generate_game, generate_game_with_llm, save_to_workspace
 from app.games.scanner import scan_code
+
+logger = logging.getLogger("arcadeforge.games")
 from app.games.schemas import (
     CreateGameRequest,
     CreateVersionRequest,
@@ -87,15 +92,111 @@ async def get_genre_detail(genre_id: str):
 # --- Game CRUD ---
 
 
+async def _generate_game_inline(game_id: str, user_id: str) -> None:
+    """Generate a game directly in the API process (no worker needed).
+
+    Runs as a FastAPI BackgroundTask so the endpoint returns immediately.
+    """
+    from app.db.session import async_session_factory
+
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(select(Game).where(Game.id == game_id))
+            game = result.scalar_one_or_none()
+            if not game:
+                logger.error(f"Game {game_id} not found for generation")
+                return
+
+            game.status = "generating"
+            await session.commit()
+
+            # Load owner for LLM settings
+            user_result = await session.execute(
+                select(User).where(User.id == game.owner_user_id)
+            )
+            owner = user_result.scalar_one_or_none()
+
+            gen_result: GenerationResult | None = None
+
+            # Try LLM generation if user has it configured
+            if owner and owner.llm_provider and owner.llm_api_key_encrypted:
+                try:
+                    from app.auth.encryption import decrypt_api_key
+
+                    api_key = decrypt_api_key(owner.llm_api_key_encrypted)
+                    gen_result = await generate_game_with_llm(
+                        provider=owner.llm_provider,
+                        api_key=api_key,
+                        model=owner.llm_model or "",
+                        genre=game.genre,
+                        title=game.title,
+                        prompt=game.prompt or "",
+                        difficulty="medium",
+                    )
+                    logger.info(f"Game {game_id} generated via LLM ({owner.llm_provider})")
+                except Exception as e:
+                    logger.warning(f"LLM failed for {game_id}, using template: {e}")
+
+            # Fallback to template
+            if gen_result is None:
+                gen_result = await asyncio.to_thread(
+                    generate_game,
+                    genre=game.genre,
+                    title=game.title,
+                    prompt=game.prompt or "",
+                    difficulty="medium",
+                )
+
+            # Save files to workspace
+            workspace_path = await asyncio.to_thread(
+                save_to_workspace,
+                user_id=str(game.owner_user_id),
+                game_id=str(game.id),
+                version=0,
+                result=gen_result,
+            )
+
+            # Create version v0
+            version = GameVersion(
+                id=uuid.uuid4(),
+                game_id=game.id,
+                version=0,
+                blueprint_json=gen_result.metadata,
+                source_code=gen_result.files.get("main.py", ""),
+                source_zip_path=workspace_path,
+            )
+            session.add(version)
+
+            game.status = "ready"
+            game.visibility = "public"
+            game.status_message = gen_result.summary
+            await session.commit()
+            logger.info(f"Game {game_id} ready → {workspace_path}")
+
+    except Exception as exc:
+        logger.exception(f"Game generation failed for {game_id}")
+        try:
+            async with async_session_factory() as session:
+                result = await session.execute(select(Game).where(Game.id == game_id))
+                game = result.scalar_one_or_none()
+                if game:
+                    game.status = "failed"
+                    game.status_message = str(exc)[:500]
+                    await session.commit()
+        except Exception:
+            logger.exception("Failed to mark game as failed")
+
+
 @router.post("", response_model=GameCreatedResponse, status_code=202)
 async def create_game(
     body: CreateGameRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new game and enqueue generation job.
+    """Create a new game and start generation.
 
-    Returns 202 Accepted — generation happens asynchronously.
+    Returns 202 Accepted — generation runs in the background.
     """
     game = Game(
         owner_user_id=user.id,
@@ -107,18 +208,13 @@ async def create_game(
     db.add(game)
     await db.flush()
 
-    # Enqueue generation job
-    queue = await get_queue()
-    await queue.enqueue_job(
-        "generate_game_task",
-        str(game.id),
-        _job_id=f"gen:{game.id}",
-    )
+    # Generate directly in the API process (no external worker needed)
+    background_tasks.add_task(_generate_game_inline, str(game.id), str(user.id))
 
     return GameCreatedResponse(
         game_id=str(game.id),
         status="queued",
-        message="Game creation queued. Generation will begin shortly.",
+        message="Game creation started. Generation will begin shortly.",
         status_url=f"/api/games/{game.id}/status",
     )
 
