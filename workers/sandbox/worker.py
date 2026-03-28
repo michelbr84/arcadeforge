@@ -33,7 +33,7 @@ async def start_sandbox_task(ctx: dict, play_session_id: str) -> dict:
 
     from app.config import settings
     from app.db.models import GameVersion, PlaySession
-    from app.games.sandbox import allocate_port, start_sandbox
+    from app.games.sandbox import allocate_port, start_sandbox, start_sandbox_dispatch
 
     engine = create_async_engine(settings.database_url)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -82,15 +82,23 @@ async def start_sandbox_task(ctx: dict, play_session_id: str) -> dict:
                     except (ValueError, IndexError):
                         pass
 
-            port = allocate_port(existing_ports)
-
-            # Start sandbox container (blocking — run in thread)
-            sandbox_info = await asyncio.to_thread(
-                start_sandbox,
-                session_id=play_session_id,
-                game_workspace_path=str(Path(workspace_path).resolve()),
-                port=port,
-            )
+            # Use the dispatcher which selects Docker or Fly based on config
+            if settings.sandbox_driver == "fly":
+                # Fly driver is fully async — no port allocation needed
+                sandbox_info = await start_sandbox_dispatch(
+                    session_id=play_session_id,
+                    game_workspace_path=str(Path(workspace_path).resolve()),
+                    port=0,  # not used by Fly driver
+                )
+            else:
+                # Docker driver — allocate a local port
+                port = allocate_port(existing_ports)
+                sandbox_info = await asyncio.to_thread(
+                    start_sandbox,
+                    session_id=play_session_id,
+                    game_workspace_path=str(Path(workspace_path).resolve()),
+                    port=port,
+                )
 
             # Update play session
             play_session.status = "running"
@@ -130,10 +138,9 @@ async def start_sandbox_task(ctx: dict, play_session_id: str) -> dict:
 
 async def cleanup_sandbox_task(ctx: dict, sandbox_ref: str) -> dict:
     """Clean up an expired or stopped sandbox container."""
-    import asyncio
-    from app.games.sandbox import stop_sandbox
+    from app.games.sandbox import stop_sandbox_dispatch
 
-    stopped = await asyncio.to_thread(stop_sandbox, sandbox_ref)
+    stopped = await stop_sandbox_dispatch(sandbox_ref)
     return {"sandbox_ref": sandbox_ref, "stopped": stopped}
 
 

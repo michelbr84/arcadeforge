@@ -1,35 +1,68 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "hooks": {
-    "pre-tool-use": [
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash G:/Projetos/arcadeforge/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/pre-tool-use.sh"
+            "command": "bash G:/Projetos/arcadeforge/.claude/hooks/pre-tool-use.sh"
           }
         ]
       }
     ],
-    "post-tool-use": [
+    "PostToolUse": [
       {
-        "matcher": "Edit",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/post-tool-use.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/post-tool-use.sh"
+            "command": "bash G:/Projetos/arcadeforge/.claude/hooks/post-tool-use.sh"
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash G:/Projetos/arcadeforge/.claude/hooks/stop.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(pytest:*)",
+      "Bash(gh:*)",
+      "Bash(jq:*)",
+      "Bash(shellcheck:*)",
+      "Bash(pnpm:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)"
     ]
   }
 }

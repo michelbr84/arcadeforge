@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsdl2-ttf-2.0-0 \
     fonts-dejavu-core \
     procps \
+    wget \
+    file \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pygame via pip as well (for latest version)

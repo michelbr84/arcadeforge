@@ -43,7 +43,10 @@ arcadeforge/
 ├── infra/             # Docker Compose
 ├── data/              # Local storage (workspaces, artifacts, sandboxes, validation)
 ├── skills/            # Reusable AI workflow skills
+├── workflows/         # Headless automation scripts (batch-fix, parallel-review, etc.)
 └── .claude/           # Hooks, agents, settings
+    ├── hooks/         # session-start, pre-tool-use, post-tool-use, stop
+    └── agents/        # team-coordinator, code-reviewer, security-auditor, doc-writer
 ```
 
 ## Conventions
@@ -84,16 +87,42 @@ Invoke with `/skill-name [arguments]`:
 
 | Skill | Purpose |
 |-------|---------|
+| `/assemble-team --mode <mode> --goals "<goals>"` | Assemble a coordinated agent team for any task |
 | `/fix-issue --issue <number>` | Read GitHub issue → write tests → fix → open PR |
 | `/tdd-loop --spec "<description>"` | TDD cycle: write failing tests → implement → iterate |
 | `/pre-commit` | Scan staged files for secrets, debug code, lint issues |
 | `/review-pr --pr <number>` | Structured code review with security + test checks |
+| `/refactor-module --file <path> --goal "<goal>"` | Safe refactor with test baseline verification |
+| `/generate-docs --dir <path>` | Auto-generate API docs from source code |
 
 ## Available Agents
 
-| Agent | Purpose |
-|-------|---------|
-| `security-auditor` | OWASP-focused security scan of codebase |
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| `team-coordinator` | opus | Orchestrates agent teams — spawns, coordinates, synthesizes |
+| `code-reviewer` | sonnet | Strict code review: correctness, security, conventions |
+| `security-auditor` | sonnet | OWASP-focused security scan of codebase |
+| `doc-writer` | sonnet | Documentation generation — README, API docs, guides |
+
+## Workflows (Headless Automation)
+
+Shell scripts in `workflows/` for batch operations using Claude headless mode:
+
+| Script | Usage |
+|--------|-------|
+| `batch-fix.sh` | Fix multiple GitHub issues: `./workflows/batch-fix.sh owner/repo 10 11 12` |
+| `parallel-review.sh` | Writer/Reviewer pattern: `./workflows/parallel-review.sh --feature branch --task "desc"` |
+| `mass-refactor.sh` | Batch refactor: `./workflows/mass-refactor.sh --pattern "old_fn" --goal "rename"` |
+| `dependency-graph.sh` | Generate dependency graph: `./workflows/dependency-graph.sh --dir apps/api/app` |
+
+## Hooks
+
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `session-start.sh` | Session opens | Shows git context, session state, available skills/agents |
+| `pre-tool-use.sh` | Before Bash | Blocks dangerous commands, logs to audit.log |
+| `post-tool-use.sh` | After Edit/Write | Auto-runs tests for changed source files |
+| `stop.sh` | Session ends | Saves session state to `.estado.md` |
 
 ## Infrastructure
 

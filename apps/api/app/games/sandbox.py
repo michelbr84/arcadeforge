@@ -6,14 +6,20 @@ Manages the lifecycle of game play session containers:
 - Stop: kill container and clean up
 - Reap: clean up expired containers by TTL
 
+Supports two drivers selected via ``settings.sandbox_driver``:
+- ``"docker"`` (default): local Docker containers
+- ``"fly"``: Fly.io Machines for cloud deployments
+
 Each container runs: Xvfb + x11vnc + websockify + game
 and exposes a WebSocket endpoint for noVNC connection.
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import docker
 from docker.errors import NotFound as DockerNotFound
@@ -25,6 +31,88 @@ logger = logging.getLogger("arcadeforge.sandbox")
 # Base port for websockify — each session gets a unique port
 _BASE_WS_PORT = 6100
 _MAX_CONCURRENT = 50
+
+
+# ---------------------------------------------------------------------------
+# Driver dispatcher
+# ---------------------------------------------------------------------------
+
+async def start_sandbox_dispatch(
+    session_id: str,
+    game_workspace_path: str,
+    port: int,
+) -> dict[str, Any]:
+    """Start a sandbox using the configured driver.
+
+    This is the primary entry point for new code. It delegates to either
+    the local Docker driver or the Fly.io Machines driver based on
+    ``settings.sandbox_driver``.
+
+    Args:
+        session_id: Unique play session ID.
+        game_workspace_path: Path (or S3 key) to the game workspace.
+        port: Host port for websockify (used only by the Docker driver).
+
+    Returns:
+        dict with connection details (keys vary by driver).
+    """
+    if settings.sandbox_driver == "fly":
+        from app.games.sandbox_fly import create_machine
+
+        result = await create_machine(session_id, game_workspace_path)
+        # Normalize return keys so the worker can use a consistent interface
+        return {
+            "container_id": result["machine_id"],
+            "container_name": result["machine_id"],
+            "ws_url": result["ws_url"],
+            "ws_port": 6080,
+            "status": "running",
+            "public_url": result.get("public_url", ""),
+        }
+    else:
+        # Docker driver — synchronous, run in thread
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            start_sandbox,
+            session_id,
+            game_workspace_path,
+            port,
+        )
+
+
+async def stop_sandbox_dispatch(sandbox_ref: str) -> bool:
+    """Stop a sandbox using the configured driver.
+
+    Args:
+        sandbox_ref: Container name (Docker) or machine ID (Fly).
+
+    Returns:
+        True if stopped successfully.
+    """
+    if settings.sandbox_driver == "fly":
+        from app.games.sandbox_fly import destroy_machine
+
+        return await destroy_machine(sandbox_ref)
+    else:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, stop_sandbox, sandbox_ref)
+
+
+async def get_sandbox_status_dispatch(sandbox_ref: str) -> str:
+    """Get sandbox status using the configured driver."""
+    if settings.sandbox_driver == "fly":
+        from app.games.sandbox_fly import get_machine_status
+
+        return await get_machine_status(sandbox_ref)
+    else:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, get_sandbox_status, sandbox_ref)
+
+
+# ---------------------------------------------------------------------------
+# Docker driver (original implementation)
+# ---------------------------------------------------------------------------
 
 
 def _get_docker_client():

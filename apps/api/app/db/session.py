@@ -8,10 +8,15 @@ from sqlalchemy.ext.asyncio import (
 
 from app.config import settings
 
+_connect_args: dict = {}
+if settings.database_ssl:
+    _connect_args["ssl"] = True
+
 engine = create_async_engine(
     settings.database_url,
     echo=settings.app_env == "development",
     pool_pre_ping=True,
+    connect_args=_connect_args,
 )
 
 async_session_factory = async_sessionmaker(

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import settings
 from app.db.models import PlaySession
-from app.games.sandbox import stop_sandbox
+from app.games.sandbox import stop_sandbox_dispatch
 
 logger = logging.getLogger("arcadeforge.reaper")
 
@@ -51,13 +51,10 @@ async def reap_expired_sessions(session_factory: async_sessionmaker) -> int:
                 f"(expired at {play_session.expires_at})"
             )
 
-            # Stop container
+            # Stop container (supports both Docker and Fly drivers)
             if play_session.sandbox_ref:
                 try:
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
-                        None, stop_sandbox, play_session.sandbox_ref
-                    )
+                    await stop_sandbox_dispatch(play_session.sandbox_ref)
                 except Exception:
                     logger.exception(
                         f"Failed to stop sandbox {play_session.sandbox_ref}"

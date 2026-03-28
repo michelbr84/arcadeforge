@@ -4,22 +4,31 @@ Workers import this to connect to the same Redis instance as the API.
 """
 
 import os
+from urllib.parse import urlparse
 
 from arq.connections import RedisSettings
 
 
 def get_redis_settings() -> RedisSettings:
-    """Parse REDIS_URL env var into arq RedisSettings."""
+    """Parse REDIS_URL env var into arq RedisSettings.
+
+    Supports both plain ``redis://`` and TLS ``rediss://`` URLs,
+    including password-authenticated URLs such as those used by Upstash:
+        rediss://default:PASSWORD@host:port/0
+    """
     url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-    parts = url.replace("redis://", "").split("/")
-    host_port = parts[0]
-    database = int(parts[1]) if len(parts) > 1 else 0
+    parsed = urlparse(url)
 
-    if ":" in host_port:
-        host, port_str = host_port.split(":")
-        port = int(port_str)
-    else:
-        host = host_port
-        port = 6379
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 6379
+    password = parsed.password or None
+    database = int(parsed.path.lstrip("/") or 0)
+    ssl = parsed.scheme == "rediss"
 
-    return RedisSettings(host=host, port=port, database=database)
+    return RedisSettings(
+        host=host,
+        port=port,
+        password=password,
+        database=database,
+        ssl=ssl,
+    )

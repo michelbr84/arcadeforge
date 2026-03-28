@@ -44,6 +44,22 @@ from app.db.session import get_db
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+def _cookie_secure() -> bool:
+    """Determine whether the Secure flag should be set on cookies.
+
+    Uses ``settings.cookie_secure`` if explicitly set, otherwise
+    auto-detects: Secure in production, not in development.
+    """
+    if settings.cookie_secure:
+        return settings.cookie_secure.lower() == "true"
+    return settings.app_env != "development"
+
+
+def _cookie_domain() -> str | None:
+    """Return the cookie domain (None for localhost, a string for prod)."""
+    return settings.cookie_domain or None
+
+
 def _set_session_cookie(response: Response, session_id: str) -> None:
     """Set the session cookie on the response."""
     response.set_cookie(
@@ -51,9 +67,10 @@ def _set_session_cookie(response: Response, session_id: str) -> None:
         value=session_id,
         max_age=int(SESSION_TTL.total_seconds()),
         path=COOKIE_PATH,
-        secure=settings.app_env != "development",
+        secure=_cookie_secure(),
         httponly=True,
         samesite=COOKIE_SAMESITE,
+        domain=_cookie_domain(),
     )
 
 
@@ -62,9 +79,10 @@ def _clear_session_cookie(response: Response) -> None:
     response.delete_cookie(
         key=COOKIE_NAME,
         path=COOKIE_PATH,
-        secure=settings.app_env != "development",
+        secure=_cookie_secure(),
         httponly=True,
         samesite=COOKIE_SAMESITE,
+        domain=_cookie_domain(),
     )
 
 

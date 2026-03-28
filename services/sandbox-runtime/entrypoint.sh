@@ -1,7 +1,65 @@
 #!/bin/bash
 # ArcadeForge Sandbox Entrypoint
 # Starts: Xvfb → x11vnc → websockify/noVNC → game
+#
+# Game loading modes (in priority order):
+#   1. GAME_DOWNLOAD_URL — download & extract a game archive from S3/MinIO
+#   2. GAME_WORKSPACE_PATH — use a local path (for dev/volume mounts)
+#   3. Volume mount at /game (original default)
 set -e
+
+# ---- Download game files if GAME_DOWNLOAD_URL is set ----
+if [ -n "${GAME_DOWNLOAD_URL}" ]; then
+    echo "[sandbox] Downloading game from presigned URL..."
+    DOWNLOAD_DIR="/tmp/game_download"
+    mkdir -p "${DOWNLOAD_DIR}" /game 2>/dev/null || true
+
+    # Download the archive/file
+    wget -q -O "${DOWNLOAD_DIR}/game_archive" "${GAME_DOWNLOAD_URL}" || {
+        echo "[sandbox] ERROR: Failed to download game from URL"
+        exit 1
+    }
+
+    # Detect file type and extract accordingly
+    FILE_TYPE=$(file -b --mime-type "${DOWNLOAD_DIR}/game_archive" 2>/dev/null || echo "unknown")
+    echo "[sandbox] Downloaded file type: ${FILE_TYPE}"
+
+    case "${FILE_TYPE}" in
+        application/zip)
+            unzip -q -o "${DOWNLOAD_DIR}/game_archive" -d /game/ 2>/dev/null || {
+                echo "[sandbox] ERROR: Failed to unzip game archive"
+                exit 1
+            }
+            ;;
+        application/gzip|application/x-gzip|application/x-tar)
+            tar xzf "${DOWNLOAD_DIR}/game_archive" -C /game/ 2>/dev/null || \
+            tar xf "${DOWNLOAD_DIR}/game_archive" -C /game/ 2>/dev/null || {
+                echo "[sandbox] ERROR: Failed to extract game archive"
+                exit 1
+            }
+            ;;
+        text/x-python|text/plain)
+            # Single Python file — just copy it
+            cp "${DOWNLOAD_DIR}/game_archive" /game/main.py
+            ;;
+        *)
+            # Try as zip first, then tar, then treat as single file
+            unzip -q -o "${DOWNLOAD_DIR}/game_archive" -d /game/ 2>/dev/null || \
+            tar xzf "${DOWNLOAD_DIR}/game_archive" -C /game/ 2>/dev/null || \
+            cp "${DOWNLOAD_DIR}/game_archive" /game/main.py
+            ;;
+    esac
+
+    rm -rf "${DOWNLOAD_DIR}"
+    echo "[sandbox] Game files extracted to /game/"
+    ls -la /game/
+elif [ -n "${GAME_WORKSPACE_PATH}" ] && [ -d "${GAME_WORKSPACE_PATH}" ]; then
+    echo "[sandbox] Using game workspace from path: ${GAME_WORKSPACE_PATH}"
+    # Copy files to /game if they are not already there
+    if [ "${GAME_WORKSPACE_PATH}" != "/game" ]; then
+        cp -r "${GAME_WORKSPACE_PATH}"/* /game/ 2>/dev/null || true
+    fi
+fi
 
 echo "[sandbox] Starting virtual display ${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH}"
 

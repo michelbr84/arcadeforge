@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Server-side only: use API_URL (not NEXT_PUBLIC_) for server component fetches.
+// Falls back to localhost for local dev.
+const API_BASE = process.env.API_URL || "http://localhost:8000";
 
 type Props = {
   params: Promise<{ gameId: string }>;
