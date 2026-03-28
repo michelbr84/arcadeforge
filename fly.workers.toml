@@ -1,11 +1,10 @@
 # Fly.io configuration for arq workers
-# Deploy from repo root: fly deploy -c workers/fly.toml
+# Deploy: fly deploy -c fly.workers.toml --remote-only
 app = "arcadeforge-workers"
 primary_region = "iad"
 
 [build]
   dockerfile = "workers/Dockerfile.cloud"
-  ignorefile = "workers/.dockerignore"
 
 [processes]
   generator = "arq workers.generator.worker.WorkerSettings"
@@ -16,8 +15,6 @@ primary_region = "iad"
   APP_ENV = "production"
   LOG_LEVEL = "INFO"
   PYTHONPATH = "/app/apps/api:/app"
-
-# Workers don't serve HTTP — no [http_service] needed.
 
 [[vm]]
   cpu_kind = "shared"

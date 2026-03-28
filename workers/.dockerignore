@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+.venv
+.env
+.env.*
+.git
+.github
+apps/web
+services
+infra
+packages
+data
+node_modules
+*.md
+plan.pdf

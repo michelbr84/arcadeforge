@@ -7,16 +7,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy and install API package (workers depend on app.*)
-COPY apps/api/pyproject.toml apps/api/
-RUN pip install --no-cache-dir -e "apps/api[cloud]"
+# Copy API package + source (workers depend on app.*)
+COPY apps/api/ apps/api/
 
-# Copy API source
-COPY apps/api/app apps/api/app
-COPY apps/api/alembic* apps/api/
+# Install API package with cloud extras
+RUN pip install --no-cache-dir "apps/api[cloud]"
 
 # Copy workers
 COPY workers/ workers/
 
+ENV PYTHONPATH="/app/apps/api:/app"
+
 # Default: run generator worker (override via fly.toml [processes])
-CMD ["python", "-m", "workers.generator.worker"]
+CMD ["arq", "workers.generator.worker.WorkerSettings"]
