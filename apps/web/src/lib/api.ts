@@ -186,6 +186,19 @@ export const api = {
         method: "PATCH",
         body: data,
       }),
+
+    getLLMSettings: () =>
+      request<{ llm_provider: string | null; llm_model: string | null; llm_api_key_set: boolean }>("/api/auth/me/llm-settings"),
+
+    updateLLMSettings: (data: {
+      llm_provider?: string | null;
+      llm_api_key?: string | null;
+      llm_model?: string | null;
+    }) =>
+      request<{ llm_provider: string | null; llm_model: string | null; llm_api_key_set: boolean }>("/api/auth/me/llm-settings", {
+        method: "PUT",
+        body: data,
+      }),
   },
 
   users: {

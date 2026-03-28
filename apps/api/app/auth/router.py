@@ -286,6 +286,54 @@ async def update_me(
     )
 
 
+@router.get("/me/llm-settings")
+async def get_llm_settings(
+    user: User = Depends(get_current_user),
+):
+    """Get the current user's LLM configuration (key is never returned)."""
+    return {
+        "llm_provider": user.llm_provider,
+        "llm_model": user.llm_model,
+        "llm_api_key_set": user.llm_api_key_encrypted is not None,
+    }
+
+
+@router.put("/me/llm-settings")
+async def update_llm_settings(
+    body: dict,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save or update LLM settings (provider, API key, model)."""
+    from app.auth.encryption import encrypt_api_key
+
+    provider = body.get("llm_provider")
+    api_key = body.get("llm_api_key")
+    model = body.get("llm_model")
+
+    if provider is not None:
+        if provider not in ("openrouter", "openai", "anthropic", ""):
+            raise HTTPException(status_code=422, detail="Invalid provider")
+        user.llm_provider = provider if provider else None
+
+    if model is not None:
+        user.llm_model = model if model else None
+
+    if api_key is not None:
+        if api_key == "":
+            user.llm_api_key_encrypted = None
+        else:
+            user.llm_api_key_encrypted = encrypt_api_key(api_key)
+
+    db.add(user)
+
+    return {
+        "llm_provider": user.llm_provider,
+        "llm_model": user.llm_model,
+        "llm_api_key_set": user.llm_api_key_encrypted is not None,
+    }
+
+
 # --- Password Reset ---
 
 

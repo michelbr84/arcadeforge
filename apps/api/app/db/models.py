@@ -34,6 +34,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
 
+    # LLM settings (per-user API key, encrypted at rest)
+    llm_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    llm_api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    llm_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # Relationships
     sessions: Mapped[list["Session"]] = relationship(back_populates="user")
     games: Mapped[list["Game"]] = relationship(back_populates="owner")
@@ -88,7 +93,7 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     pitch: Mapped[str | None] = mapped_column(Text, nullable=True)
     prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    visibility: Mapped[str] = mapped_column(String(20), default="private", nullable=False)
+    visibility: Mapped[str] = mapped_column(String(20), default="public", nullable=False)
     play_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="queued", nullable=False)
     status_message: Mapped[str | None] = mapped_column(Text, nullable=True)

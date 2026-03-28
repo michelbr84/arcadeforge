@@ -8,7 +8,7 @@ ArcadeForge is an open-source platform where users generate games with AI, play 
 
 ## Features
 
-- **AI Game Generation** — Describe your game, pick a genre, and get playable Pygame code in seconds
+- **AI Game Generation** — Describe your game, pick a genre, and get playable Pygame code via LLM (OpenAI, Anthropic, or OpenRouter)
 - **Browser Gameplay** — Games run in secure sandbox containers via noVNC — no downloads, no installs
 - **Monaco Code Editor** — Edit game code with full syntax highlighting, save new versions, auto-validate
 - **Code Scanner** — 25+ pattern denylist catches dangerous code before sandbox execution
@@ -17,6 +17,7 @@ ArcadeForge is an open-source platform where users generate games with AI, play 
 - **Share & Embed** — Share links with Open Graph previews, embed games on any website via iframe
 - **Fork & Remix** — Fork any public game into your library and make it your own
 - **Secure Auth** — Argon2id password hashing, server-side sessions, rate limiting, password reset
+- **Bring Your Own LLM** — Connect OpenAI, Anthropic, or OpenRouter API keys in account settings
 
 ## Tech Stack
 

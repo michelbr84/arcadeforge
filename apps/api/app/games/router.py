@@ -238,6 +238,9 @@ async def create_version(
     )
     db.add(validation)
 
+    # Touch the game so arcade listings reflect the update
+    game.status_message = f"v{next_version} saved"
+
     # If scan passed, enqueue full smoke-check validation
     if scan_result.passed:
         try:

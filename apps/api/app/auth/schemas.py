@@ -102,3 +102,22 @@ class ConfirmPasswordResetRequest(BaseModel):
 
 class AuthMessageResponse(BaseModel):
     message: str
+
+
+class LLMSettingsResponse(BaseModel):
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    llm_api_key_set: bool = False
+
+
+class UpdateLLMSettingsRequest(BaseModel):
+    llm_provider: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str | None = None
+
+    @field_validator("llm_provider")
+    @classmethod
+    def validate_provider(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("openrouter", "openai", "anthropic"):
+            raise ValueError("Provider must be one of: openrouter, openai, anthropic")
+        return v

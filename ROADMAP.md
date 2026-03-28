@@ -121,7 +121,7 @@
 - [ ] 4.12 Client subscribes while job is running
 
 ### Slice 5: Optional/harder — deferred
-- [ ] 4.13 LLM-assist mode (optional, behind `LLM_MODE` env)
+- [x] 4.13 LLM-powered generation (OpenAI, Anthropic, OpenRouter — per-user API keys)
 - [ ] 4.14 Async-compatible game loop (WASM-ready from day 1)
 
 ---
