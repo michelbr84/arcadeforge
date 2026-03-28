@@ -16,6 +16,10 @@ config = context.config
 # Set the SQLAlchemy URL from app settings.
 # Alembic runs sync, so replace asyncpg with psycopg.
 sync_url = settings.database_url.replace("+asyncpg", "+psycopg")
+# Fly internal Postgres doesn't support SSL; disable if not explicitly required
+if not settings.database_ssl and "sslmode" not in sync_url:
+    sep = "&" if "?" in sync_url else "?"
+    sync_url += f"{sep}sslmode=disable"
 config.set_main_option("sqlalchemy.url", sync_url)
 
 # Interpret the config file for Python logging

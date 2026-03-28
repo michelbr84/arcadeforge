@@ -1,29 +1,20 @@
 # Fly.io configuration for arq workers
-# Deploy as separate Fly apps per worker type:
-#   arcadeforge-worker-generator
-#   arcadeforge-worker-validator
-#   arcadeforge-worker-sandbox
-#
-# Override `app` name and CMD per worker. Example:
-#   cp fly.toml fly.generator.toml  (change app name)
-#   fly deploy -c fly.generator.toml --dockerfile ../apps/api/Dockerfile.cloud
-#
-# Or deploy once and scale processes via fly.toml [processes].
-
+# Deployed from the repo root: fly deploy -c workers/fly.toml
 app = "arcadeforge-workers"
 primary_region = "iad"
 
 [build]
-  dockerfile = "../apps/api/Dockerfile.cloud"
+  dockerfile = "workers/Dockerfile.cloud"
 
 [processes]
-  generator = "python -m workers.generator.main"
-  validator = "python -m workers.validator.main"
-  sandbox   = "python -m workers.sandbox.main"
+  generator = "arq workers.generator.worker.WorkerSettings"
+  validator = "arq workers.validator.worker.WorkerSettings"
+  sandbox   = "arq workers.sandbox.worker.WorkerSettings"
 
 [env]
   APP_ENV = "production"
   LOG_LEVEL = "INFO"
+  PYTHONPATH = "/app/apps/api:/app"
 
 # Workers don't serve HTTP — no [http_service] needed.
 # Fly keeps non-HTTP apps alive as long as a process is running.
