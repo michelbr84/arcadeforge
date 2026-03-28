@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import (
 
 from app.config import settings
 
-# asyncpg doesn't understand ?sslmode= query params — strip them and use connect_args instead
-_db_url = settings.database_url
-for _param in ("sslmode=disable", "sslmode=require", "sslmode=prefer"):
-    _db_url = _db_url.replace(f"?{_param}", "?").replace(f"&{_param}", "")
-_db_url = _db_url.rstrip("?").rstrip("&")
+# asyncpg doesn't understand Postgres query params like sslmode, channel_binding —
+# strip them all and use connect_args for SSL instead
+from urllib.parse import urlparse, urlunparse
+
+_parsed = urlparse(settings.database_url)
+_db_url = urlunparse(_parsed._replace(query=""))  # remove all query params
 
 _connect_args: dict = {}
 if settings.database_ssl:
