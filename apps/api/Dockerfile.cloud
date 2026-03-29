@@ -13,6 +13,6 @@ COPY . .
 # Install Python deps
 RUN pip install --no-cache-dir ".[cloud]"
 
-# Fly.io sets $PORT dynamically; default to 8000
+# Render/Fly sets $PORT dynamically; default to 8000
 ENV PORT=8000
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]

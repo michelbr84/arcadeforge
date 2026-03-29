@@ -136,15 +136,15 @@ Shell scripts in `workflows/` for batch operations using Claude headless mode:
 | Service | Platform | Config |
 |---------|----------|--------|
 | Frontend | Vercel | `apps/web/vercel.json` |
-| API | Fly.io | `apps/api/fly.toml` + `Dockerfile.cloud` |
-| Workers | Fly.io | `workers/fly.toml` + `Dockerfile.cloud` |
-| Sandbox | Fly.io Machines | `services/sandbox-runtime/fly.toml` |
+| API | Render | `apps/api/render.yaml` + `Dockerfile.cloud` |
+| Workers | Render | `workers/render.yaml` + `Dockerfile.cloud` |
+| Sandbox | Render Machines | `services/sandbox-runtime/render.yaml` |
 | Database | Fly Postgres | Internal networking (flycast) |
 | Redis | Upstash | TLS via `rediss://` URL |
 | CI/CD | GitHub Actions | `.github/workflows/deploy.yml` |
 
-- **Deploy API**: `cd apps/api && fly deploy --remote-only`
-- **Deploy Workers**: `cd workers && fly deploy --remote-only` (from repo root)
+- **Deploy API**: `cd apps/api && git push (auto-deploys via Render)`
+- **Deploy Workers**: `cd workers && git push (auto-deploys via Render)` (from repo root)
 - **Env vars**: `.env.cloud.example` documents all cloud env vars
 
 ## Key Files
@@ -155,5 +155,5 @@ Shell scripts in `workflows/` for batch operations using Claude headless mode:
 - `apps/api/app/db/models.py` — Database models (7 tables)
 - `apps/api/app/config.py` — Pydantic settings configuration
 - `apps/api/app/storage.py` — S3/local storage abstraction
-- `apps/api/app/games/sandbox_fly.py` — Fly.io Machines sandbox driver
+- `apps/api/app/games/sandbox_fly.py` — Render Machines sandbox driver
 - `workers/shared_settings.py` — Shared arq Redis settings

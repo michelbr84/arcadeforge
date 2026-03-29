@@ -229,43 +229,24 @@ ArcadeForge runs entirely in the cloud — no local servers needed.
 | Component | Service | URL |
 |-----------|---------|-----|
 | Frontend | Vercel | [arcadeforge-web.vercel.app](https://arcadeforge-web.vercel.app) |
-| API | Fly.io | [arcadeforge-api.fly.dev](https://arcadeforge-api.fly.dev) |
-| Database | Fly Postgres | Internal (flycast) |
+| API | Render | [arcadeforge-api.onrender.com](https://arcadeforge-api.onrender.com) |
+| Database | Neon | PostgreSQL (free tier) |
 | Redis | Upstash | TLS connection |
-| Workers | Fly.io | 3 processes (generator, validator, sandbox) |
-| Sandbox | Fly.io Machines | On-demand containers |
 
 ### Deploy from scratch
 
-```bash
-# 1. Install Fly CLI
-powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
-fly auth login
+1. **Render**: Go to [dashboard.render.com](https://dashboard.render.com), connect your GitHub repo, create a Web Service from `apps/api/Dockerfile.cloud` with root `apps/api`. Set environment variables from `.env.cloud.example`.
 
-# 2. Create apps
-fly apps create arcadeforge-api
-fly apps create arcadeforge-workers
-fly apps create arcadeforge-sandbox
+2. **Neon**: Create a database at [neon.tech](https://neon.tech). Copy the connection string to `DATABASE_URL`.
 
-# 3. Create Postgres
-fly postgres create --name arcadeforge-db --region iad --vm-size shared-cpu-1x
+3. **Upstash**: Create Redis at [upstash.com](https://upstash.com). Copy the `rediss://` URL to `REDIS_URL`.
 
-# 4. Set secrets (see .env.cloud.example for all vars)
-fly secrets set -a arcadeforge-api APP_ENV=production DATABASE_URL="..." REDIS_URL="..." ...
+4. **Vercel**: Import repo at [vercel.com/new](https://vercel.com/new), set root dir to `apps/web`. Add env var `API_URL=https://arcadeforge-api.onrender.com`.
 
-# 5. Deploy API
-cd apps/api && fly deploy --remote-only
-
-# 6. Run migrations
-fly ssh console -a arcadeforge-api -C "sh -c 'cd /app && alembic upgrade head'"
-
-# 7. Deploy workers
-cd workers && fly deploy --remote-only
-
-# 8. Connect Vercel
-# Import repo at vercel.com/new, set root dir to apps/web
-# Add env var: API_URL=https://arcadeforge-api.fly.dev
-```
+5. **Run migrations**: Use the Render Shell or connect locally:
+   ```bash
+   DATABASE_URL="your-neon-url" alembic upgrade head
+   ```
 
 See `.env.cloud.example` for all required environment variables.
 
