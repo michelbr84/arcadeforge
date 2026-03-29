@@ -284,24 +284,25 @@
 
 **Goal:** Deploy to cloud without local infrastructure. No ports, no Docker Desktop.
 
-- [x] 13.1 Add cloud config settings (S3, Fly.io, cookie domain, DB SSL)
+- [x] 13.1 Add cloud config settings (S3, cookie domain, DB SSL)
 - [x] 13.2 Create S3 storage abstraction (local filesystem or S3/R2)
 - [x] 13.3 Fix Redis URL parsing for Upstash (TLS + password support)
-- [x] 13.4 Create Fly.io Machines sandbox driver (alternative to Docker)
-- [x] 13.5 Update Next.js rewrite proxy for configurable API_URL
-- [x] 13.6 Add CORS expose_headers and cookie domain/secure config
-- [x] 13.7 Create Dockerfile.cloud and fly.toml for API + workers
-- [x] 13.8 Create GitHub Actions CI/CD (test + deploy to Fly.io)
-- [x] 13.9 Deploy API to Fly.io (`arcadeforge-api.fly.dev`)
-- [x] 13.10 Deploy Postgres to Fly.io + run migrations
-- [x] 13.11 Deploy Redis via Upstash (pay-as-you-go)
-- [x] 13.12 Deploy frontend to Vercel (`arcadeforge-web.vercel.app`)
-- [ ] 13.13 Deploy sandbox image to Fly.io registry
-- [ ] 13.14 Deploy workers to Fly.io
-- [ ] 13.15 Set up Cloudflare R2 for object storage
+- [x] 13.4 Update Next.js rewrite proxy for configurable API_URL
+- [x] 13.5 Add CORS expose_headers and cookie domain/secure config
+- [x] 13.6 Create Dockerfile.cloud for API
+- [x] 13.7 Deploy database to Neon (PostgreSQL, free tier)
+- [x] 13.8 Deploy Redis via Upstash (pay-as-you-go)
+- [x] 13.9 Deploy frontend to Vercel (`arcadeforge-web.vercel.app`)
+- [x] 13.10 Deploy API to Render (`arcadeforge-api.onrender.com`)
+- [x] 13.11 Run Alembic migrations on Neon
+- [x] 13.12 Seed 6 games from infinity-arcade into the arcade
+- [x] 13.13 Inline game generation in API process (BackgroundTasks)
+- [x] 13.14 LLM-powered generation (OpenAI, Anthropic, OpenRouter)
+- [x] 13.15 Per-user LLM API key settings (encrypted at rest)
 - [ ] 13.16 End-to-end verification (register, create game, play)
+- [ ] 13.17 Set up object storage (Cloudflare R2 or similar)
 
-**Checkpoint:** Full stack running in cloud. API health check passes. Frontend proxies to API.
+**Checkpoint:** Full stack running in cloud. Arcade populated. LLM generation working.
 
 ---
 
@@ -322,7 +323,7 @@
 | Database | PostgreSQL 16 + Alembic migrations |
 | Queue | arq (async Redis queue) |
 | Cache/Sessions | Redis 7 |
-| Object Storage | MinIO (dev) / S3 (prod) |
+| Object Storage | MinIO (dev) / S3 or R2 (prod) |
 | Game Runtime (v1) | Sandbox container + Xvfb + VNC + noVNC |
 | Game Runtime (v2) | pygbag / WebAssembly |
 | Auth | Email+password, Argon2id, HttpOnly session cookies |
@@ -347,5 +348,5 @@
 | 10. Security Hardening | 2-3 weeks | ✅ Core complete (audit+privacy deferred) |
 | 11. Testing & CI/CD | 2-3 weeks | ✅ Complete (Playwright deferred) |
 | 12. Production Launch | 1-2 weeks | ✅ Complete |
-| 13. Cloud Deployment | 1 week | [~] In progress |
+| 13. Cloud Deployment + LLM | 1 week | [~] In progress |
 | **Total** | **~28-35 weeks** | |

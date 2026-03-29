@@ -136,24 +136,25 @@ Shell scripts in `workflows/` for batch operations using Claude headless mode:
 | Service | Platform | Config |
 |---------|----------|--------|
 | Frontend | Vercel | `apps/web/vercel.json` |
-| API | Render | `apps/api/render.yaml` + `Dockerfile.cloud` |
-| Workers | Render | `workers/render.yaml` + `Dockerfile.cloud` |
-| Sandbox | Render Machines | `services/sandbox-runtime/render.yaml` |
-| Database | Fly Postgres | Internal networking (flycast) |
+| API | Render | `render.yaml` + `apps/api/Dockerfile.cloud` |
+| Database | Neon | PostgreSQL (free tier, serverless) |
 | Redis | Upstash | TLS via `rediss://` URL |
 | CI/CD | GitHub Actions | `.github/workflows/deploy.yml` |
 
-- **Deploy API**: `cd apps/api && git push (auto-deploys via Render)`
-- **Deploy Workers**: `cd workers && git push (auto-deploys via Render)` (from repo root)
+- **Deploy API**: Push to `main` — Render auto-deploys
+- **Deploy Frontend**: Push to `main` — Vercel auto-deploys
 - **Env vars**: `.env.cloud.example` documents all cloud env vars
+- **Game generation**: Runs inline in API process via FastAPI BackgroundTasks
 
 ## Key Files
 
 - `ROADMAP.md` — Phase-by-phase delivery plan with checkboxes
 - `.env.example` — All environment variables (local dev)
 - `.env.cloud.example` — All environment variables (cloud deployment)
+- `render.yaml` — Render blueprint for one-click deploy
 - `apps/api/app/db/models.py` — Database models (7 tables)
 - `apps/api/app/config.py` — Pydantic settings configuration
 - `apps/api/app/storage.py` — S3/local storage abstraction
-- `apps/api/app/games/sandbox_fly.py` — Render Machines sandbox driver
+- `apps/api/app/games/llm_client.py` — Unified LLM client (OpenAI, Anthropic, OpenRouter)
+- `apps/api/app/auth/encryption.py` — Fernet encryption for API keys at rest
 - `workers/shared_settings.py` — Shared arq Redis settings

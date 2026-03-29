@@ -1,11 +1,13 @@
-name: CI/CD — Test & Deploy
+name: CI — Test on Push
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -60,55 +62,6 @@ jobs:
           APP_SECRET_KEY: test-secret-key-not-for-production
         run: pytest -v
 
-  deploy-api:
-    name: Deploy API to Fly.io
-    runs-on: ubuntu-latest
-    needs: api-tests
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy API
-        working-directory: apps/api
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl deploy --remote-only
-
-  deploy-workers:
-    name: Deploy Workers to Fly.io
-    runs-on: ubuntu-latest
-    needs: api-tests
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy Workers
-        working-directory: workers
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl deploy --remote-only
-
-  deploy-sandbox:
-    name: Deploy Sandbox to Fly.io
-    runs-on: ubuntu-latest
-    needs: api-tests
-    if: |
-      contains(
-        join(github.event.commits.*.modified, ','),
-        'services/sandbox-runtime/'
-      ) || contains(
-        join(github.event.commits.*.added, ','),
-        'services/sandbox-runtime/'
-      )
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy Sandbox
-        working-directory: services/sandbox-runtime
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl deploy --remote-only
+# Deployment is handled automatically:
+# - Render: auto-deploys API on push to main (connected via GitHub)
+# - Vercel: auto-deploys frontend on push to main (connected via GitHub)
