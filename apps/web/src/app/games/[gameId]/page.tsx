@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, type Game, type GameVersion, type GameStatus, type ValidationRun, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
@@ -17,18 +17,20 @@ const STATUS_LABELS: Record<GameStatus, { label: string; color: string }> = {
   failed: { label: "Failed", color: "bg-red-500/10 text-red-400 border-red-500/20" },
 };
 
-export default function GameDetailPage() {
+function GameDetailContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const gameId = params.gameId as string;
 
   const currentUser = useAuthStore((s) => s.user);
 
+  const initialTab = (searchParams.get("tab") as "overview" | "play" | "code" | "validate") || "overview";
   const [game, setGame] = useState<Game | null>(null);
   const [versions, setVersions] = useState<GameVersion[]>([]);
   const [validations, setValidations] = useState<ValidationRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "play" | "code" | "validate">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "play" | "code" | "validate">(initialTab);
   const [playSessionId, setPlaySessionId] = useState<string | null>(null);
   const [playWsUrl, setPlayWsUrl] = useState<string | null>(null);
   const [playLoading, setPlayLoading] = useState(false);
@@ -316,55 +318,72 @@ export default function GameDetailPage() {
               Game must be in &quot;ready&quot; state to play.
             </div>
           ) : (
-            <div className="rounded-lg bg-gray-900 border border-gray-800 p-8">
-              <h3 className="text-lg font-semibold text-white mb-4">Run This Game</h3>
-
-              <div className="space-y-4">
-                {/* Download button */}
-                {latestVersion?.source_code && (
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([latestVersion.source_code!], { type: "text/x-python" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `${game.title.toLowerCase().replace(/\s+/g, "-")}.py`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    className="w-full rounded-lg bg-green-600 px-6 py-3 font-medium text-white hover:bg-green-500 transition-colors"
-                  >
-                    Download Game (.py)
-                  </button>
-                )}
-
-                {/* Copy to clipboard */}
-                {latestVersion?.source_code && (
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(latestVersion.source_code!);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }}
-                    className="w-full rounded-lg border border-gray-700 px-6 py-3 font-medium text-gray-300 hover:bg-gray-800 transition-colors"
-                  >
-                    {copied ? "Copied!" : "Copy Code to Clipboard"}
-                  </button>
-                )}
-
-                {/* Instructions */}
-                <div className="rounded-lg bg-gray-800/50 p-4 space-y-2">
-                  <p className="text-sm font-medium text-gray-300">How to run:</p>
-                  <div className="font-mono text-xs text-gray-400 space-y-1">
-                    <p>1. Install pygame-ce: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-green-400">pip install pygame-ce</code></p>
-                    <p>2. Run the game: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-green-400">python {game.title.toLowerCase().replace(/\s+/g, "-")}.py</code></p>
-                  </div>
-                </div>
-
-                <p className="text-xs text-gray-500 text-center">
-                  Browser play (WebAssembly) coming in a future update.
-                </p>
+            <div className="space-y-4">
+              {/* Browser game iframe */}
+              <div className="rounded-lg border border-gray-800 overflow-hidden bg-black">
+                <iframe
+                  src={`/api/games/${gameId}/play-html`}
+                  className="w-full border-0"
+                  style={{ height: "70vh", minHeight: "480px" }}
+                  sandbox="allow-scripts"
+                  allow="fullscreen"
+                  title={`Play ${game.title}`}
+                />
               </div>
+
+              {/* Controls hint */}
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Click on the game to focus, then use keyboard controls</span>
+                <button
+                  onClick={() => {
+                    const iframe = document.querySelector("iframe");
+                    if (iframe) iframe.requestFullscreen?.();
+                  }}
+                  className="rounded border border-gray-700 px-3 py-1 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+                >
+                  Fullscreen
+                </button>
+              </div>
+
+              {/* Download section (collapsed) */}
+              {latestVersion?.source_code && (
+                <details className="rounded-lg bg-gray-900 border border-gray-800">
+                  <summary className="px-4 py-3 text-sm text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                    Download Python version (Pygame)
+                  </summary>
+                  <div className="px-4 pb-4 space-y-3">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([latestVersion.source_code!], { type: "text/x-python" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `${game.title.toLowerCase().replace(/\s+/g, "-")}.py`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition-colors"
+                      >
+                        Download .py
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(latestVersion.source_code!);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                      >
+                        {copied ? "Copied!" : "Copy Code"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Run locally: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-green-400">pip install pygame-ce</code> then <code className="bg-gray-800 px-1.5 py-0.5 rounded text-green-400">python {game.title.toLowerCase().replace(/\s+/g, "-")}.py</code>
+                    </p>
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </div>
@@ -453,5 +472,13 @@ export default function GameDetailPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function GameDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center"><p className="text-gray-400">Loading game...</p></div>}>
+      <GameDetailContent />
+    </Suspense>
   );
 }

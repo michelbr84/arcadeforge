@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.games.genres import Genre, get_all_genres, get_genre
 from app.games.play_schemas import PlaySessionCreatedResponse, PlaySessionResponse
 from app.games.generator import GenerationResult, generate_game, generate_game_with_llm, save_to_workspace
+from app.games.html_generator import generate_html_game
 from app.games.scanner import scan_code
 
 logger = logging.getLogger("arcadeforge.games")
@@ -205,15 +206,19 @@ async def create_game(
         pitch=body.prompt[:200] if body.prompt else None,
     )
     db.add(game)
-    await db.flush()
+    await db.commit()
 
     # Generate inline — BackgroundTasks unreliable on free-tier hosting
     await _generate_game_inline(str(game.id), str(user.id))
 
+    # Re-fetch to get final status after generation
+    result = await db.execute(select(Game).where(Game.id == game.id))
+    game = result.scalar_one()
+
     return GameCreatedResponse(
         game_id=str(game.id),
-        status="queued",
-        message="Game creation started. Generation will begin shortly.",
+        status=game.status,
+        message=game.status_message or "Game created.",
         status_url=f"/api/games/{game.id}/status",
     )
 
@@ -567,6 +572,81 @@ async def scan_game_code(
         ],
         critical_count=scan_result.critical_count,
         high_count=scan_result.high_count,
+    )
+
+
+# --- Browser Play (HTML5) ---
+
+
+@router.get("/{game_id}/play-html")
+async def get_game_html(
+    game_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Serve a self-contained HTML5 Canvas version of the game.
+
+    Returns text/html that can be embedded in an iframe.
+    No authentication required for public games. Rate limited per IP.
+    """
+    # Rate limit: 60 requests per minute per IP
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not ip and request.client:
+        ip = request.client.host
+    allowed, remaining = await check_rate_limit(f"play_html:{ip}", 60, 60)
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Too many requests.")
+
+    game = await _get_game_or_404(game_id, db)
+
+    # Only public, ready games can be played
+    if game.visibility != "public":
+        raise HTTPException(status_code=404, detail="Game not found.")
+    if game.status != "ready":
+        raise HTTPException(status_code=400, detail="Game is not ready to play.")
+
+    # Get difficulty from latest version blueprint
+    result = await db.execute(
+        select(GameVersion)
+        .where(GameVersion.game_id == game.id)
+        .order_by(GameVersion.version.desc())
+        .limit(1)
+    )
+    version = result.scalar_one_or_none()
+    difficulty = "medium"
+    if version and version.blueprint_json:
+        difficulty = version.blueprint_json.get("difficulty", "medium")
+        if difficulty not in ("easy", "medium", "hard"):
+            difficulty = "medium"
+
+    try:
+        html = generate_html_game(
+            genre=game.genre,
+            title=game.title,
+            difficulty=difficulty,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Browser play not available for genre: {game.genre}",
+        )
+
+    # Increment play count (debounce: once per IP+game per hour)
+    play_key = f"play_seen:{game_id}:{ip}"
+    seen, _ = await check_rate_limit(play_key, 1, 3600)
+    if not seen:
+        await db.execute(
+            update(Game).where(Game.id == game.id).values(play_count=Game.play_count + 1)
+        )
+        await db.commit()
+
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

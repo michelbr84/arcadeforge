@@ -131,22 +131,25 @@ function ArcadeContent() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {games.map((game) => (
-            <Link
+            <div
               key={game.id}
-              href={`/games/${game.id}`}
               className="group rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden hover:border-gray-700 transition-colors"
             >
               {/* Placeholder thumbnail */}
-              <div className="aspect-video bg-gray-800 flex items-center justify-center">
-                <span className="text-4xl text-gray-600">
-                  {game.genre === "shooter" ? "🚀" : game.genre === "puzzle" ? "🧩" : game.genre === "sports" ? "🏆" : "🎮"}
-                </span>
-              </div>
+              <Link href={`/games/${game.id}`}>
+                <div className="aspect-video bg-gray-800 flex items-center justify-center">
+                  <span className="text-4xl text-gray-600">
+                    {game.genre === "shooter" ? "🚀" : game.genre === "puzzle" ? "🧩" : game.genre === "sports" ? "🏆" : "🎮"}
+                  </span>
+                </div>
+              </Link>
 
               <div className="p-4">
-                <h3 className="font-semibold text-white group-hover:text-indigo-400 transition-colors truncate">
-                  {game.title}
-                </h3>
+                <Link href={`/games/${game.id}`}>
+                  <h3 className="font-semibold text-white group-hover:text-indigo-400 transition-colors truncate">
+                    {game.title}
+                  </h3>
+                </Link>
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                   <span className="capitalize">{game.genre}</span>
                   <span>·</span>
@@ -161,8 +164,22 @@ function ArcadeContent() {
                 {game.pitch && (
                   <p className="mt-2 text-sm text-gray-400 line-clamp-2">{game.pitch}</p>
                 )}
+                <div className="flex gap-2 mt-3">
+                  <Link
+                    href={`/games/${game.id}?tab=play`}
+                    className="rounded-lg bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-500 transition-colors"
+                  >
+                    Play
+                  </Link>
+                  <Link
+                    href={`/games/${game.id}`}
+                    className="rounded-lg border border-gray-700 px-4 py-1.5 text-sm text-gray-400 hover:text-gray-300 hover:border-gray-600 transition-colors"
+                  >
+                    Details
+                  </Link>
+                </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
