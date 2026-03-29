@@ -315,65 +315,56 @@ export default function GameDetailPage() {
             <div className="rounded-lg bg-gray-900 border border-gray-800 p-8 text-center text-gray-500">
               Game must be in &quot;ready&quot; state to play.
             </div>
-          ) : playWsUrl ? (
-            <div>
-              <GamePlayerNoVNC
-                wsUrl={playWsUrl}
-                onDisconnect={async () => {
-                  if (playSessionId) {
-                    await api.games.stopPlay(gameId, playSessionId).catch(() => {});
-                  }
-                  setPlayWsUrl(null);
-                  setPlaySessionId(null);
-                }}
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Session will auto-terminate after {Math.round(settings_sandbox_ttl / 60)} minutes.
-              </p>
-            </div>
           ) : (
-            <div className="rounded-lg bg-gray-900 border border-gray-800 p-12 text-center">
-              <p className="text-gray-300 text-lg mb-4">Ready to play?</p>
-              <button
-                onClick={async () => {
-                  setPlayLoading(true);
-                  try {
-                    const result = await api.games.play(gameId);
-                    setPlaySessionId(result.session_id);
-                    // Poll for session to be ready
-                    const pollInterval = setInterval(async () => {
-                      try {
-                        const session = await api.games.playSession(gameId, result.session_id);
-                        if (session.status === "running" && session.ws_url) {
-                          clearInterval(pollInterval);
-                          setPlayWsUrl(session.ws_url);
-                          setPlayLoading(false);
-                        } else if (session.status === "failed") {
-                          clearInterval(pollInterval);
-                          setPlayLoading(false);
-                        }
-                      } catch {
-                        clearInterval(pollInterval);
-                        setPlayLoading(false);
-                      }
-                    }, 2000);
-                    // Safety: stop polling after 60s
-                    setTimeout(() => {
-                      clearInterval(pollInterval);
-                      setPlayLoading(false);
-                    }, 60000);
-                  } catch {
-                    setPlayLoading(false);
-                  }
-                }}
-                disabled={playLoading}
-                className="rounded-lg bg-green-600 px-8 py-3 font-medium text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {playLoading ? "Starting session..." : "Play Now"}
-              </button>
-              <p className="text-xs text-gray-500 mt-3">
-                Game runs in a secure sandbox container.
-              </p>
+            <div className="rounded-lg bg-gray-900 border border-gray-800 p-8">
+              <h3 className="text-lg font-semibold text-white mb-4">Run This Game</h3>
+
+              <div className="space-y-4">
+                {/* Download button */}
+                {latestVersion?.source_code && (
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([latestVersion.source_code!], { type: "text/x-python" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${game.title.toLowerCase().replace(/\s+/g, "-")}.py`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="w-full rounded-lg bg-green-600 px-6 py-3 font-medium text-white hover:bg-green-500 transition-colors"
+                  >
+                    Download Game (.py)
+                  </button>
+                )}
+
+                {/* Copy to clipboard */}
+                {latestVersion?.source_code && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(latestVersion.source_code!);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="w-full rounded-lg border border-gray-700 px-6 py-3 font-medium text-gray-300 hover:bg-gray-800 transition-colors"
+                  >
+                    {copied ? "Copied!" : "Copy Code to Clipboard"}
+                  </button>
+                )}
+
+                {/* Instructions */}
+                <div className="rounded-lg bg-gray-800/50 p-4 space-y-2">
+                  <p className="text-sm font-medium text-gray-300">How to run:</p>
+                  <div className="font-mono text-xs text-gray-400 space-y-1">
+                    <p>1. Install pygame-ce: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-green-400">pip install pygame-ce</code></p>
+                    <p>2. Run the game: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-green-400">python {game.title.toLowerCase().replace(/\s+/g, "-")}.py</code></p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Browser play (WebAssembly) coming in a future update.
+                </p>
+              </div>
             </div>
           )}
         </div>

@@ -190,13 +190,12 @@ async def _generate_game_inline(game_id: str, user_id: str) -> None:
 @router.post("", response_model=GameCreatedResponse, status_code=202)
 async def create_game(
     body: CreateGameRequest,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new game and start generation.
+    """Create a new game and generate it immediately.
 
-    Returns 202 Accepted — generation runs in the background.
+    Returns 202 Accepted after generation is complete.
     """
     game = Game(
         owner_user_id=user.id,
@@ -208,8 +207,8 @@ async def create_game(
     db.add(game)
     await db.flush()
 
-    # Generate directly in the API process (no external worker needed)
-    background_tasks.add_task(_generate_game_inline, str(game.id), str(user.id))
+    # Generate inline — BackgroundTasks unreliable on free-tier hosting
+    await _generate_game_inline(str(game.id), str(user.id))
 
     return GameCreatedResponse(
         game_id=str(game.id),

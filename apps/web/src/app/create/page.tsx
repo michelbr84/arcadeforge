@@ -158,7 +158,7 @@ export default function CreateGamePage() {
           disabled={submitting || !genre || !title || prompt.length < 10}
           className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {submitting ? "Creating game..." : "Generate Game"}
+          {submitting ? "Generating... (this may take up to 60s)" : "Generate Game"}
         </button>
       </form>
     </main>
