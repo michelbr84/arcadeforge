@@ -13,10 +13,23 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 
-# Use a separate test database so tests don't destroy dev data
+# Use a separate test database so tests don't destroy dev data.
+# Prefer TEST_DATABASE_URL if set (CI workflows set it explicitly); otherwise
+# derive from DATABASE_URL by appending "_test" to the database name. The old
+# str.replace() approach was non-idempotent ("arcadeforge_test" -> "arcadeforge_test_test").
 import os
-_test_db = os.environ.get("TEST_DATABASE_URL", settings.database_url.replace("/arcadeforge", "/arcadeforge_test"))
-TEST_DB_URL = _test_db
+from urllib.parse import urlparse, urlunparse
+
+
+def _derive_test_db_url(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    path = parsed.path or "/"
+    if not path.endswith("_test"):
+        path = path + "_test"
+    return urlunparse(parsed._replace(path=path))
+
+
+TEST_DB_URL = os.environ.get("TEST_DATABASE_URL") or _derive_test_db_url(settings.database_url)
 
 
 @pytest_asyncio.fixture(autouse=True)

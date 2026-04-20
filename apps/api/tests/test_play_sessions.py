@@ -20,36 +20,43 @@ async def _register(client: AsyncClient, email: str, username: str) -> str:
 
 
 async def _create_ready_game(client: AsyncClient, cookie: str, db_session: AsyncSession) -> str:
-    """Create a game and manually mark it as ready with a version."""
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={
-                "genre": "shooter",
-                "title": "Playable Game",
-                "prompt": "A space shooter that is ready for playing",
-            },
-            cookies={COOKIE_NAME: cookie},
-        )
-    game_id = resp.json()["game_id"]
+    """Create a ready game with v0.
 
-    # Manually set game to ready and create a version
-    from sqlalchemy import select, update
+    Idempotently forces ready status and upserts v0 so the helper is resilient to
+    inline-gen flakiness across tests sharing the production engine pool.
+    """
     import uuid
+    from sqlalchemy import update
+
+    resp = await client.post(
+        "/api/games",
+        json={
+            "genre": "shooter",
+            "title": "Playable Game",
+            "prompt": "A space shooter that is ready for playing",
+        },
+        cookies={COOKIE_NAME: cookie},
+    )
+    game_id = resp.json()["game_id"]
+    uid = uuid.UUID(game_id)
+    v0_source = 'import pygame\npygame.init()\nprint("test")'
 
     await db_session.execute(
-        update(Game).where(Game.id == uuid.UUID(game_id)).values(status="ready")
+        update(Game).where(Game.id == uid).values(status="ready")
     )
-    version = GameVersion(
-        game_id=uuid.UUID(game_id),
-        version=0,
-        source_code='import pygame\npygame.init()\nprint("test")',
-        source_zip_path="/data/workspaces/test/test/v0",
+    result = await db_session.execute(
+        update(GameVersion)
+        .where(GameVersion.game_id == uid, GameVersion.version == 0)
+        .values(source_code=v0_source)
     )
-    db_session.add(version)
+    if result.rowcount == 0:
+        db_session.add(GameVersion(
+            game_id=uid,
+            version=0,
+            source_code=v0_source,
+            source_zip_path="/data/workspaces/test/test/v0",
+        ))
     await db_session.commit()
-
     return game_id
 
 
@@ -193,7 +200,7 @@ async def test_reaper_expires_sessions(client: AsyncClient, db_session: AsyncSes
 
     # Run reaper with the async engine from the fixture
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    with patch("app.games.reaper.stop_sandbox"):
+    with patch("app.games.reaper.stop_sandbox_dispatch"):
         reaped = await reap_expired_sessions(session_factory)
 
     assert reaped == 1

@@ -6,7 +6,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
-from unittest.mock import AsyncMock, patch
 
 from app.auth.sessions import COOKIE_NAME
 from app.db.models import Game, GameVersion
@@ -24,30 +23,33 @@ async def _create_public_game(
     client: AsyncClient, cookie: str, db_session: AsyncSession,
     title: str, genre: str = "shooter",
 ) -> str:
-    """Create a public, ready game for arcade testing."""
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={"genre": genre, "title": title, "prompt": f"A {genre} game called {title} for testing"},
-            cookies={COOKIE_NAME: cookie},
-        )
-    game_id = resp.json()["game_id"]
+    """Create a public, ready game for arcade testing.
 
-    # Make it public and ready
+    POST /api/games runs inline generation which usually creates v0 and sets
+    status=ready/visibility=public. We idempotently force that final state so the
+    helper is resilient to inline-gen flakiness across tests sharing the production
+    engine pool.
+    """
+    resp = await client.post(
+        "/api/games",
+        json={"genre": genre, "title": title, "prompt": f"A {genre} game called {title} for testing"},
+        cookies={COOKIE_NAME: cookie},
+    )
+    game_id = resp.json()["game_id"]
+    uid = uuid.UUID(game_id)
+
     await db_session.execute(
-        update(Game)
-        .where(Game.id == uuid.UUID(game_id))
-        .values(status="ready", visibility="public")
+        update(Game).where(Game.id == uid).values(status="ready", visibility="public")
     )
-    v0 = GameVersion(
-        game_id=uuid.UUID(game_id),
-        version=0,
-        source_code="import pygame\npygame.init()",
+    # Upsert v0: UPDATE if inline gen created it, else INSERT.
+    result = await db_session.execute(
+        update(GameVersion)
+        .where(GameVersion.game_id == uid, GameVersion.version == 0)
+        .values(source_code="import pygame\npygame.init()")
     )
-    db_session.add(v0)
+    if result.rowcount == 0:
+        db_session.add(GameVersion(game_id=uid, version=0, source_code="import pygame\npygame.init()"))
     await db_session.commit()
-    await db_session.close()
     return game_id
 
 
@@ -69,17 +71,16 @@ async def test_arcade_excludes_private_games(client: AsyncClient, db_session: As
     """Private games should not appear in arcade."""
     cookie = await _register(client, "priv@example.com", "privuser")
 
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={"genre": "puzzle", "title": "Private Game", "prompt": "This game should stay private and hidden"},
-            cookies={COOKIE_NAME: cookie},
-        )
+    resp = await client.post(
+        "/api/games",
+        json={"genre": "puzzle", "title": "Private Game", "prompt": "This game should stay private and hidden"},
+        cookies={COOKIE_NAME: cookie},
+    )
     game_id = resp.json()["game_id"]
-    # Mark ready but keep private (default)
+
+    # Force ready + private regardless of inline-gen outcome
     await db_session.execute(
-        update(Game).where(Game.id == uuid.UUID(game_id)).values(status="ready")
+        update(Game).where(Game.id == uuid.UUID(game_id)).values(status="ready", visibility="private")
     )
     await db_session.commit()
     await db_session.close()
