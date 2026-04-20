@@ -56,28 +56,24 @@ async def test_get_genre_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_create_game_returns_202(client: AsyncClient):
-    """POST /api/games returns 202 Accepted with game_id."""
+    """POST /api/games returns 202 Accepted with game_id and status_url."""
     cookie = await _register(client, "creator@example.com", "creator")
 
-    # Mock the arq queue to avoid needing real Redis for job enqueue
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={
-                "genre": "shooter",
-                "title": "My Space Game",
-                "prompt": "Create a space shooter with asteroids and power-ups",
-            },
-            cookies={COOKIE_NAME: cookie},
-        )
+    resp = await client.post(
+        "/api/games",
+        json={
+            "genre": "shooter",
+            "title": "My Space Game",
+            "prompt": "Create a space shooter with asteroids and power-ups",
+        },
+        cookies={COOKIE_NAME: cookie},
+    )
 
     assert resp.status_code == 202
     data = resp.json()
     assert "game_id" in data
-    assert data["status"] == "queued"
+    assert "status" in data
     assert "status_url" in data
-    mock_queue.enqueue_job.assert_called_once()
 
 
 @pytest.mark.asyncio

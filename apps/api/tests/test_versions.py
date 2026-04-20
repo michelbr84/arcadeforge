@@ -22,29 +22,34 @@ async def _register(client: AsyncClient, email: str, username: str) -> str:
 
 
 async def _create_ready_game_with_v0(client: AsyncClient, cookie: str, db_session: AsyncSession) -> str:
-    """Create a game with v0 already present."""
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={
-                "genre": "shooter",
-                "title": "Editable Game",
-                "prompt": "A game that will be edited in the editor view",
-            },
-            cookies={COOKIE_NAME: cookie},
-        )
+    """Create a ready game with v0 containing a known-valid pygame template.
+
+    Idempotently forces ready status and upserts v0 so the helper is resilient to
+    inline-gen flakiness across tests sharing the production engine pool.
+    """
+    resp = await client.post(
+        "/api/games",
+        json={
+            "genre": "shooter",
+            "title": "Editable Game",
+            "prompt": "A game that will be edited in the editor view",
+        },
+        cookies={COOKIE_NAME: cookie},
+    )
     game_id = resp.json()["game_id"]
+    uid = uuid.UUID(game_id)
+    v0_source = 'import pygame\npygame.init()\nscreen = pygame.display.set_mode((800,600))\nrunning = True\nwhile running:\n    for event in pygame.event.get():\n        if event.type == pygame.QUIT:\n            running = False\n    pygame.display.flip()\npygame.quit()'
 
     await db_session.execute(
-        update(Game).where(Game.id == uuid.UUID(game_id)).values(status="ready")
+        update(Game).where(Game.id == uid).values(status="ready")
     )
-    v0 = GameVersion(
-        game_id=uuid.UUID(game_id),
-        version=0,
-        source_code='import pygame\npygame.init()\nscreen = pygame.display.set_mode((800,600))\nrunning = True\nwhile running:\n    for event in pygame.event.get():\n        if event.type == pygame.QUIT:\n            running = False\n    pygame.display.flip()\npygame.quit()',
+    result = await db_session.execute(
+        update(GameVersion)
+        .where(GameVersion.game_id == uid, GameVersion.version == 0)
+        .values(source_code=v0_source)
     )
-    db_session.add(v0)
+    if result.rowcount == 0:
+        db_session.add(GameVersion(game_id=uid, version=0, source_code=v0_source))
     await db_session.commit()
     await db_session.close()
     return game_id

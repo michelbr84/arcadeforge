@@ -23,27 +23,35 @@ async def _register(client: AsyncClient, email: str, username: str) -> str:
 async def _create_public_game(
     client: AsyncClient, cookie: str, db_session: AsyncSession, title: str = "Forkable Game"
 ) -> str:
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={"genre": "shooter", "title": title, "prompt": f"A public shooter game called {title}"},
-            cookies={COOKIE_NAME: cookie},
-        )
+    """Create a public, ready game with v0 containing a known marker string.
+
+    Idempotently forces status/visibility and upserts v0 so the helper is resilient
+    to inline-gen flakiness.
+    """
+    resp = await client.post(
+        "/api/games",
+        json={"genre": "shooter", "title": title, "prompt": f"A public shooter game called {title}"},
+        cookies={COOKIE_NAME: cookie},
+    )
     game_id = resp.json()["game_id"]
+    uid = uuid.UUID(game_id)
+    marker_source = "import pygame\npygame.init()\n# original code"
 
     await db_session.execute(
-        update(Game).where(Game.id == uuid.UUID(game_id)).values(
-            status="ready", visibility="public"
-        )
+        update(Game).where(Game.id == uid).values(status="ready", visibility="public")
     )
-    v0 = GameVersion(
-        game_id=uuid.UUID(game_id),
-        version=0,
-        source_code="import pygame\npygame.init()\n# original code",
-        blueprint_json={"genre": "shooter"},
+    result = await db_session.execute(
+        update(GameVersion)
+        .where(GameVersion.game_id == uid, GameVersion.version == 0)
+        .values(source_code=marker_source, blueprint_json={"genre": "shooter"})
     )
-    db_session.add(v0)
+    if result.rowcount == 0:
+        db_session.add(GameVersion(
+            game_id=uid,
+            version=0,
+            source_code=marker_source,
+            blueprint_json={"genre": "shooter"},
+        ))
     await db_session.commit()
     await db_session.close()
     return game_id
@@ -75,17 +83,16 @@ async def test_fork_public_game(client: AsyncClient, db_session: AsyncSession):
 async def test_fork_private_game_fails(client: AsyncClient, db_session: AsyncSession):
     """Cannot fork a private game."""
     owner_cookie = await _register(client, "privowner@example.com", "privforkowner")
-    mock_queue = AsyncMock()
-    with patch("app.games.router.get_queue", return_value=mock_queue):
-        resp = await client.post(
-            "/api/games",
-            json={"genre": "puzzle", "title": "Private", "prompt": "A private puzzle game that cannot be forked"},
-            cookies={COOKIE_NAME: owner_cookie},
-        )
+    resp = await client.post(
+        "/api/games",
+        json={"genre": "puzzle", "title": "Private", "prompt": "A private puzzle game that cannot be forked"},
+        cookies={COOKIE_NAME: owner_cookie},
+    )
     game_id = resp.json()["game_id"]
-    # Keep it private (default)
+
+    # Force ready + private regardless of inline-gen outcome
     await db_session.execute(
-        update(Game).where(Game.id == uuid.UUID(game_id)).values(status="ready")
+        update(Game).where(Game.id == uuid.UUID(game_id)).values(status="ready", visibility="private")
     )
     await db_session.commit()
     await db_session.close()
